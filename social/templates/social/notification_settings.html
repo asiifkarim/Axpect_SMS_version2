@@ -1,0 +1,458 @@
+{% extends "main_app/base.html" %}
+{% load static %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block custom_css %}
+<style>
+.settings-section {
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.settings-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.setting-item {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.setting-item:last-child {
+    border-bottom: none;
+}
+
+.setting-description {
+    flex: 1;
+}
+
+.setting-control {
+    margin-left: auto;
+}
+
+.custom-switch {
+    padding-left: 2.25rem;
+}
+
+.custom-switch .custom-control-label::before {
+    left: -2.25rem;
+    width: 1.75rem;
+    pointer-events: all;
+    border-radius: 0.5rem;
+}
+
+.custom-switch .custom-control-label::after {
+    top: calc(0.25rem + 2px);
+    left: calc(-2.25rem + 2px);
+    width: calc(1rem - 4px);
+    height: calc(1rem - 4px);
+    background-color: #adb5bd;
+    border-radius: 0.5rem;
+    transition: transform 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.time-input-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.preview-section {
+    background: #f8f9fa;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.notification-preview {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+}
+
+.notification-icon {
+    width: 40px;
+    height: 40px;
+    background: #007bff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    margin-right: 0.75rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-bell mr-2"></i>Notification Settings
+                </h3>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <!-- Message Notifications -->
+                    <div class="settings-section">
+                        <h5><i class="fas fa-comments mr-2 text-primary"></i>Message Notifications</h5>
+                        <p class="text-muted">Control how you receive notifications for new messages.</p>
+                        
+                        <div class="setting-item">
+                            <div class="setting-description">
+                                <strong>Desktop Notifications</strong>
+                                <br><small class="text-muted">Show browser notifications for new messages</small>
+                            </div>
+                            <div class="setting-control">
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" id="desktop_notifications" 
+                                           name="desktop_notifications" {% if settings.desktop_notifications %}checked{% endif %}>
+                                    <label class="custom-control-label" for="desktop_notifications"></label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <div class="setting-description">
+                                <strong>Email Notifications</strong>
+                                <br><small class="text-muted">Receive email notifications for missed messages</small>
+                            </div>
+                            <div class="setting-control">
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" id="email_notifications" 
+                                           name="email_notifications" {% if settings.email_notifications %}checked{% endif %}>
+                                    <label class="custom-control-label" for="email_notifications"></label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <div class="setting-description">
+                                <strong>Sound Notifications</strong>
+                                <br><small class="text-muted">Play sound when receiving messages</small>
+                            </div>
+                            <div class="setting-control">
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" id="sound_notifications" 
+                                           name="sound_notifications" {% if settings.sound_notifications %}checked{% endif %}>
+                                    <label class="custom-control-label" for="sound_notifications"></label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Timing Settings -->
+                    <div class="settings-section">
+                        <h5><i class="fas fa-clock mr-2 text-info"></i>Notification Timing</h5>
+                        <p class="text-muted">Set quiet hours and weekend preferences.</p>
+                        
+                        <div class="setting-item">
+                            <div class="setting-description">
+                                <strong>Weekend Notifications</strong>
+                                <br><small class="text-muted">Receive notifications on weekends</small>
+                            </div>
+                            <div class="setting-control">
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" id="weekend_notifications" 
+                                           name="weekend_notifications" {% if settings.weekend_notifications %}checked{% endif %}>
+                                    <label class="custom-control-label" for="weekend_notifications"></label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <div class="setting-description">
+                                <strong>Quiet Hours</strong>
+                                <br><small class="text-muted">Set hours when you don't want to receive notifications</small>
+                            </div>
+                            <div class="setting-control">
+                                <div class="time-input-group">
+                                    <input type="time" class="form-control form-control-sm" name="quiet_hours_start" 
+                                           value="{{ settings.quiet_hours_start|time:'H:i' }}" style="width: 120px;">
+                                    <span>to</span>
+                                    <input type="time" class="form-control form-control-sm" name="quiet_hours_end" 
+                                           value="{{ settings.quiet_hours_end|time:'H:i' }}" style="width: 120px;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Group Settings -->
+                    <div class="settings-section">
+                        <h5><i class="fas fa-users mr-2 text-success"></i>Group Chat Settings</h5>
+                        <p class="text-muted">Customize notifications for group conversations.</p>
+                        
+                        <div class="setting-item">
+                            <div class="setting-description">
+                                <strong>Mute All Groups</strong>
+                                <br><small class="text-muted">Disable notifications from all group chats</small>
+                            </div>
+                            <div class="setting-control">
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" id="mute_all_groups" 
+                                           name="mute_all_groups" {% if settings.mute_all_groups %}checked{% endif %}>
+                                    <label class="custom-control-label" for="mute_all_groups"></label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <div class="setting-description">
+                                <strong>Only Mentions</strong>
+                                <br><small class="text-muted">Only notify when you're mentioned in groups</small>
+                            </div>
+                            <div class="setting-control">
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" id="only_mentions" 
+                                           name="only_mentions" {% if settings.only_mentions %}checked{% endif %}>
+                                    <label class="custom-control-label" for="only_mentions"></label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Google Drive Settings -->
+                    <div class="settings-section">
+                        <h5><i class="fab fa-google-drive mr-2 text-warning"></i>Google Drive Notifications</h5>
+                        <p class="text-muted">Control notifications for Google Drive file sharing.</p>
+                        
+                        <div class="setting-item">
+                            <div class="setting-description">
+                                <strong>File Share Notifications</strong>
+                                <br><small class="text-muted">Notify when someone shares a Drive file with you</small>
+                            </div>
+                            <div class="setting-control">
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" id="drive_share_notifications" 
+                                           name="drive_share_notifications" {% if settings.drive_share_notifications %}checked{% endif %}>
+                                    <label class="custom-control-label" for="drive_share_notifications"></label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <div class="setting-description">
+                                <strong>Sync Notifications</strong>
+                                <br><small class="text-muted">Notify about Drive sync status and errors</small>
+                            </div>
+                            <div class="setting-control">
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" id="drive_sync_notifications" 
+                                           name="drive_sync_notifications" {% if settings.drive_sync_notifications %}checked{% endif %}>
+                                    <label class="custom-control-label" for="drive_sync_notifications"></label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-right">
+                        <a href="{% url 'social:dashboard' %}" class="btn btn-secondary mr-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save mr-2"></i>Save Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Preview -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-eye mr-2"></i>Notification Preview
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="preview-section">
+                    <h6>Desktop Notification</h6>
+                    <div class="notification-preview">
+                        <div class="notification-icon">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <div>
+                            <strong>New Message</strong><br>
+                            <small class="text-muted">John Doe: Hey, are you available for a quick call?</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="preview-section">
+                    <h6>Drive File Notification</h6>
+                    <div class="notification-preview">
+                        <div class="notification-icon" style="background: #4285f4;">
+                            <i class="fab fa-google-drive"></i>
+                        </div>
+                        <div>
+                            <strong>File Shared</strong><br>
+                            <small class="text-muted">Sarah shared "Project Report.pdf" with you</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    <strong>Note:</strong> Browser notifications require permission. Click "Allow" when prompted.
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-bolt mr-2"></i>Quick Actions
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-outline-primary btn-block mb-2" onclick="testNotification()">
+                        <i class="fas fa-bell mr-2"></i>Test Desktop Notification
+                    </button>
+                    <button type="button" class="btn btn-outline-info btn-block mb-2" onclick="requestPermission()">
+                        <i class="fas fa-shield-alt mr-2"></i>Request Browser Permission
+                    </button>
+                    <a href="{% url 'social:dashboard' %}" class="btn btn-outline-secondary btn-block">
+                        <i class="fas fa-arrow-left mr-2"></i>Back to Messages
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tips -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-lightbulb mr-2"></i>Tips
+                </h3>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success mr-2"></i>
+                        <small>Enable desktop notifications for instant alerts</small>
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success mr-2"></i>
+                        <small>Set quiet hours to avoid interruptions during sleep</small>
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success mr-2"></i>
+                        <small>Use "Only Mentions" for busy group chats</small>
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success mr-2"></i>
+                        <small>Email notifications help catch missed messages</small>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block custom_js %}
+<script>
+function testNotification() {
+    if ('Notification' in window) {
+        if (Notification.permission === 'granted') {
+            new Notification('Test Notification', {
+                body: 'This is how your notifications will look!',
+                icon: '/static/dist/img/AdminLTELogo.png',
+                tag: 'test-notification'
+            });
+        } else {
+            alert('Please allow notifications first by clicking "Request Browser Permission"');
+        }
+    } else {
+        alert('Your browser does not support notifications');
+    }
+}
+
+function requestPermission() {
+    if ('Notification' in window) {
+        Notification.requestPermission().then(function(permission) {
+            if (permission === 'granted') {
+                alert('Notification permission granted! You can now receive desktop notifications.');
+                testNotification();
+            } else {
+                alert('Notification permission denied. You can enable it in your browser settings.');
+            }
+        });
+    } else {
+        alert('Your browser does not support notifications');
+    }
+}
+
+// Auto-request permission on page load if not already granted
+$(document).ready(function() {
+    if ('Notification' in window && Notification.permission === 'default') {
+        // Show a subtle prompt
+        const alertHtml = `
+            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                <i class="fas fa-bell mr-2"></i>
+                <strong>Enable Notifications:</strong> Click "Request Browser Permission" to receive desktop notifications for new messages.
+                <button type="button" class="close" data-dismiss="alert">
+                    <span>&times;</span>
+                </button>
+            </div>
+        `;
+        $('.content-wrapper .container-fluid').prepend(alertHtml);
+    }
+    
+    // Show current permission status
+    if ('Notification' in window) {
+        let status = 'Not supported';
+        let statusClass = 'danger';
+        
+        switch (Notification.permission) {
+            case 'granted':
+                status = 'Enabled';
+                statusClass = 'success';
+                break;
+            case 'denied':
+                status = 'Blocked';
+                statusClass = 'danger';
+                break;
+            case 'default':
+                status = 'Not requested';
+                statusClass = 'warning';
+                break;
+        }
+        
+        $('.card-body').first().append(`
+            <div class="alert alert-${statusClass} mt-3">
+                <strong>Browser Notification Status:</strong> ${status}
+            </div>
+        `);
+    }
+});
+
+// Form validation
+$('form').on('submit', function(e) {
+    const startTime = $('input[name="quiet_hours_start"]').val();
+    const endTime = $('input[name="quiet_hours_end"]').val();
+    
+    if ((startTime && !endTime) || (!startTime && endTime)) {
+        e.preventDefault();
+        alert('Please set both start and end times for quiet hours, or leave both empty.');
+        return false;
+    }
+});
+</script>
+{% endblock %}

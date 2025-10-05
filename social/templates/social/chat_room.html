@@ -1,0 +1,801 @@
+{% extends "main_app/base.html" %}
+{% load static %}
+{% load social_filters %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block custom_css %}
+<style>
+.chat-container {
+    height: 70vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-header {
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    padding: 15px 20px;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    background: #ffffff;
+}
+
+.chat-input {
+    border-top: 1px solid #dee2e6;
+    padding: 15px 20px;
+    background: #f8f9fa;
+}
+
+.message {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: flex-start;
+}
+
+.message.own {
+    flex-direction: row-reverse;
+}
+
+.message-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin: 0 10px;
+}
+
+.message-content {
+    max-width: 70%;
+    background: #e9ecef;
+    padding: 10px 15px;
+    border-radius: 18px;
+    position: relative;
+}
+
+.message.own .message-content {
+    background: #007bff;
+    color: white;
+}
+
+.message-info {
+    font-size: 0.75em;
+    color: #6c757d;
+    margin-bottom: 5px;
+}
+
+.message.own .message-info {
+    color: rgba(255, 255, 255, 0.8);
+    text-align: right;
+}
+
+.message-text {
+    margin: 0;
+    word-wrap: break-word;
+}
+
+.message-file {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 10px;
+    margin-top: 5px;
+}
+
+.message-reactions {
+    margin-top: 5px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.reaction {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 0.8em;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.reaction:hover {
+    background: #e9ecef;
+}
+
+.reaction.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.typing-indicator {
+    padding: 10px 20px;
+    font-style: italic;
+    color: #6c757d;
+    display: none;
+}
+
+.online-users {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.online-user {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid #28a745;
+}
+
+.file-preview {
+    max-width: 200px;
+    max-height: 200px;
+    border-radius: 8px;
+}
+
+.reply-preview {
+    background: rgba(0, 0, 0, 0.1);
+    border-left: 3px solid #007bff;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+.message.own .reply-preview {
+    background: rgba(255, 255, 255, 0.2);
+    border-left-color: rgba(255, 255, 255, 0.8);
+}
+
+.message-actions {
+    position: absolute;
+    top: -10px;
+    right: 10px;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 15px;
+    padding: 5px;
+    display: none;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.message:hover .message-actions {
+    display: flex;
+}
+
+.message-actions button {
+    border: none;
+    background: none;
+    padding: 5px;
+    margin: 0 2px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.message-actions button:hover {
+    background: #f8f9fa;
+}
+
+.drive-file-preview {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    margin-top: 5px;
+    text-decoration: none;
+    color: inherit;
+}
+
+.drive-file-preview:hover {
+    background: #e9ecef;
+    text-decoration: none;
+    color: inherit;
+}
+
+.drive-file-icon {
+    font-size: 2em;
+    margin-right: 10px;
+    color: #4285f4;
+}
+
+/* Google Drive Browse Button Styling */
+.input-group-prepend .btn:not(:last-child) {
+    border-radius: 0.375rem 0 0 0.375rem;
+    margin-right: -1px;
+}
+
+.input-group-prepend .btn:last-child {
+    border-radius: 0;
+}
+
+.drive-browse-btn {
+    background: linear-gradient(45deg, #4285f4, #34a853);
+    border-color: #4285f4;
+    color: white;
+}
+
+.drive-browse-btn:hover {
+    background: linear-gradient(45deg, #3367d6, #2d8f47);
+    border-color: #3367d6;
+    color: white;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-9">
+        <div class="card">
+            <div class="chat-container">
+                <!-- Chat Header -->
+                <div class="chat-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <a href="{% url 'social:dashboard' %}" class="btn btn-outline-secondary btn-sm mr-3">
+                                <i class="fas fa-arrow-left"></i>
+                            </a>
+                            <div>
+                                <h5 class="mb-0">{{ group|dm_display_name:request.user }}</h5>
+                                <small class="text-muted">
+                                    {% if group.group_type == 'DIRECT' %}
+                                        <span class="badge badge-primary ml-1">Direct Message</span>
+                                    {% else %}
+                                        {{ group.member_count }} member{{ group.member_count|pluralize }}
+                                        {% if group.group_type == 'DEPARTMENT' %}
+                                            <span class="badge badge-info ml-1">Department</span>
+                                        {% elif group.group_type == 'CUSTOM' %}
+                                            <span class="badge badge-success ml-1">Group</span>
+                                        {% endif %}
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex align-items-center">
+                            <!-- Online Users -->
+                            <div class="online-users mr-3">
+                                {% for member in group_members %}
+                                    {% if member.user.is_online %}
+                                        <img src="{{ member.user.profile_pic.url|default:'/static/dist/img/user-default.png' }}" 
+                                             class="online-user" 
+                                             title="{{ member.user.first_name }} {{ member.user.last_name }} (Online)">
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            
+                            <!-- Group Actions -->
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <div class="dropdown-menu dropdown-menu-right">
+                                    <a class="dropdown-item" href="#" data-toggle="modal" data-target="#groupInfoModal">
+                                        <i class="fas fa-info-circle mr-2"></i>Group Info
+                                    </a>
+                                    {% if can_manage_group %}
+                                        <a class="dropdown-item" href="#" data-toggle="modal" data-target="#manageGroupModal">
+                                            <i class="fas fa-cog mr-2"></i>Manage Group
+                                        </a>
+                                    {% endif %}
+                                    {% if group.group_type != 'DEPARTMENT' %}
+                                        <div class="dropdown-divider"></div>
+                                        <a class="dropdown-item text-danger" href="#" onclick="leaveGroup()">
+                                            <i class="fas fa-sign-out-alt mr-2"></i>Leave Group
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Messages Area -->
+                <div class="chat-messages" id="chatMessages">
+                    {% for message in messages %}
+                        <div class="message {% if message.sender == request.user %}own{% endif %}" data-message-id="{{ message.id }}">
+                            {% if message.sender != request.user %}
+                                <img src="{{ message.sender.profile_pic.url|default:'/static/dist/img/user-default.png' }}" 
+                                     class="message-avatar">
+                            {% endif %}
+                            
+                            <div class="message-content">
+                                <div class="message-actions">
+                                    <button type="button" onclick="replyToMessage({{ message.id }})" title="Reply">
+                                        <i class="fas fa-reply"></i>
+                                    </button>
+                                    <button type="button" onclick="reactToMessage({{ message.id }}, 'LIKE')" title="Like">
+                                        <i class="fas fa-thumbs-up"></i>
+                                    </button>
+                                </div>
+                                
+                                <div class="message-info">
+                                    {% if message.sender != request.user %}
+                                        <strong>{{ message.sender.first_name }} {{ message.sender.last_name }}</strong>
+                                    {% endif %}
+                                    <span class="message-time">{{ message.created_at|date:"H:i" }}</span>
+                                    {% if message.is_edited %}
+                                        <span class="text-muted">(edited)</span>
+                                    {% endif %}
+                                </div>
+
+                                {% if message.reply_to %}
+                                    <div class="reply-preview">
+                                        <small><strong>{{ message.reply_to.sender.first_name }}:</strong> {{ message.reply_to.content|truncatechars:50 }}</small>
+                                    </div>
+                                {% endif %}
+
+                                {% if message.message_type == 'TEXT' %}
+                                    <p class="message-text">{{ message.content|linebreaks }}</p>
+                                {% elif message.message_type == 'DRIVE_FILE' %}
+                                    <p class="message-text">{{ message.content|linebreaks }}</p>
+                                    <a href="{{ message.drive_file_url }}" target="_blank" class="drive-file-preview">
+                                        <i class="fab fa-google-drive drive-file-icon"></i>
+                                        <div>
+                                            <div class="font-weight-bold">{{ message.drive_file_name }}</div>
+                                            <small class="text-muted">Google Drive File</small>
+                                        </div>
+                                    </a>
+                                {% elif message.message_type == 'IMAGE' %}
+                                    <p class="message-text">{{ message.content|linebreaks }}</p>
+                                    <img src="{{ message.file_attachment.url }}" class="file-preview" alt="Image">
+                                {% elif message.message_type == 'FILE' %}
+                                    <p class="message-text">{{ message.content|linebreaks }}</p>
+                                    <div class="message-file">
+                                        <i class="fas fa-file mr-2"></i>
+                                        <a href="{{ message.file_attachment.url }}" target="_blank">{{ message.file_name }}</a>
+                                    </div>
+                                {% endif %}
+
+                                <!-- Reactions -->
+                                {% if message.reactions.all %}
+                                    <div class="message-reactions">
+                                        {% regroup message.reactions.all by reaction_type as reaction_groups %}
+                                        {% for reaction_group in reaction_groups %}
+                                            <span class="reaction" onclick="reactToMessage({{ message.id }}, '{{ reaction_group.grouper }}')">
+                                                {{ reaction_group.grouper|lookup_reaction_emoji }} {{ reaction_group.list|length }}
+                                            </span>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            {% if message.sender == request.user %}
+                                <img src="{{ message.sender.profile_pic.url|default:'/static/dist/img/user-default.png' }}" 
+                                     class="message-avatar">
+                            {% endif %}
+                        </div>
+                    {% empty %}
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-comments fa-3x mb-3"></i>
+                            <h5>No messages yet</h5>
+                            <p>Start the conversation by sending a message below.</p>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Typing Indicator -->
+                <div class="typing-indicator" id="typingIndicator">
+                    <span id="typingUsers"></span> is typing...
+                </div>
+
+                <!-- Message Input -->
+                <div class="chat-input">
+                    <div id="replyPreview" class="reply-preview mb-2" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small><strong>Replying to <span id="replyToUser"></span>:</strong></small>
+                                <div id="replyToContent"></div>
+                            </div>
+                            <button type="button" class="btn btn-sm" onclick="cancelReply()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <div class="input-group-prepend">
+                            {% if is_drive_connected %}
+                                <button class="btn drive-browse-btn" type="button" onclick="openDriveFilePicker()" title="Browse Google Drive">
+                                    <i class="fab fa-google-drive mr-1"></i>Browse Drive
+                                </button>
+                            {% endif %}
+                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown">
+                                <i class="fas fa-paperclip"></i>
+                            </button>
+                            <div class="dropdown-menu">
+                                {% if is_drive_connected %}
+                                    <a class="dropdown-item" href="#" onclick="openDriveFilePicker()">
+                                        <i class="fab fa-google-drive mr-2"></i>Google Drive File
+                                    </a>
+                                {% else %}
+                                    <a class="dropdown-item" href="{% url 'social:google_drive_dashboard' %}">
+                                        <i class="fab fa-google-drive mr-2"></i>Connect Google Drive
+                                    </a>
+                                {% endif %}
+                                <a class="dropdown-item" href="#" onclick="$('#fileInput').click()">
+                                    <i class="fas fa-file mr-2"></i>Upload File
+                                </a>
+                                <a class="dropdown-item" href="#" onclick="$('#imageInput').click()">
+                                    <i class="fas fa-image mr-2"></i>Upload Image
+                                </a>
+                            </div>
+                        </div>
+                        <input type="text" class="form-control" id="messageInput" placeholder="Type a message..." maxlength="1000">
+                        <div class="input-group-append">
+                            <button class="btn btn-primary" type="button" onclick="sendMessage()">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Hidden file inputs -->
+                    <input type="file" id="fileInput" style="display: none;" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar">
+                    <input type="file" id="imageInput" style="display: none;" accept="image/*">
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <!-- Group Members -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-users mr-2"></i>Members ({{ group.member_count }})
+                </h3>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for member in group_members %}
+                        <div class="list-group-item d-flex align-items-center">
+                            <div class="position-relative mr-3">
+                                <img src="{{ member.user.profile_pic.url|default:'/static/dist/img/user-default.png' }}" 
+                                     class="rounded-circle" width="40" height="40">
+                                {% if member.user.is_online %}
+                                    <span class="position-absolute" style="bottom: 0; right: 0; width: 12px; height: 12px; background: #28a745; border: 2px solid white; border-radius: 50%;"></span>
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="font-weight-bold">{{ member.user.first_name }} {{ member.user.last_name }}</div>
+                                <small class="text-muted">
+                                    {{ member.user.get_user_type_display }}
+                                    {% if member.role == 'ADMIN' %}
+                                        <span class="badge badge-warning badge-sm ml-1">Admin</span>
+                                    {% elif member.role == 'MODERATOR' %}
+                                        <span class="badge badge-info badge-sm ml-1">Moderator</span>
+                                    {% endif %}
+                                </small>
+                            </div>
+                            {% if not member.user.is_online %}
+                                <small class="text-muted">{{ member.user.last_seen|timesince }} ago</small>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Drive File Picker Modal -->
+<div class="modal fade" id="driveFilePickerModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Select Google Drive File</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="driveFileList">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="sr-only">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block custom_js %}
+<script>
+let chatSocket;
+let replyToMessageId = null;
+let typingTimeout;
+
+$(document).ready(function() {
+    // Initialize WebSocket connection
+    initializeWebSocket();
+    
+    // Scroll to bottom of messages
+    scrollToBottom();
+    
+    // Message input handlers
+    $('#messageInput').on('keypress', function(e) {
+        if (e.which === 13) {
+            sendMessage();
+        } else {
+            handleTyping();
+        }
+    });
+    
+    // File upload handlers
+    $('#fileInput').change(function() {
+        if (this.files.length > 0) {
+            uploadFile(this.files[0], 'FILE');
+        }
+    });
+    
+    $('#imageInput').change(function() {
+        if (this.files.length > 0) {
+            uploadFile(this.files[0], 'IMAGE');
+        }
+    });
+});
+
+function initializeWebSocket() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/social/chat/{{ group.id }}/`;
+    
+    chatSocket = new WebSocket(wsUrl);
+    
+    chatSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        handleWebSocketMessage(data);
+    };
+    
+    chatSocket.onclose = function(e) {
+        console.error('Chat socket closed unexpectedly');
+        // Attempt to reconnect after 3 seconds
+        setTimeout(initializeWebSocket, 3000);
+    };
+    
+    chatSocket.onerror = function(e) {
+        console.error('WebSocket error:', e);
+    };
+}
+
+function handleWebSocketMessage(data) {
+    switch (data.type) {
+        case 'chat_message':
+            addMessageToChat(data.message);
+            break;
+        case 'typing_indicator':
+            handleTypingIndicator(data);
+            break;
+        case 'message_read':
+            handleMessageRead(data);
+            break;
+        case 'message_reaction':
+            handleMessageReaction(data);
+            break;
+        case 'user_status':
+            handleUserStatus(data);
+            break;
+    }
+}
+
+function sendMessage() {
+    const messageInput = $('#messageInput');
+    const content = messageInput.val().trim();
+    
+    if (!content) return;
+    
+    const messageData = {
+        type: 'chat_message',
+        content: content,
+        reply_to: replyToMessageId
+    };
+    
+    chatSocket.send(JSON.stringify(messageData));
+    
+    messageInput.val('');
+    cancelReply();
+    stopTyping();
+}
+
+function handleTyping() {
+    chatSocket.send(JSON.stringify({
+        type: 'typing_indicator',
+        is_typing: true
+    }));
+    
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(stopTyping, 3000);
+}
+
+function stopTyping() {
+    chatSocket.send(JSON.stringify({
+        type: 'typing_indicator',
+        is_typing: false
+    }));
+}
+
+function handleTypingIndicator(data) {
+    const typingIndicator = $('#typingIndicator');
+    const typingUsers = $('#typingUsers');
+    
+    if (data.is_typing) {
+        typingUsers.text(data.user_name);
+        typingIndicator.show();
+    } else {
+        typingIndicator.hide();
+    }
+}
+
+function addMessageToChat(message) {
+    const messagesContainer = $('#chatMessages');
+    const isOwn = message.sender.id === {{ request.user.id }};
+    
+    let messageHtml = `
+        <div class="message ${isOwn ? 'own' : ''}" data-message-id="${message.id}">
+            ${!isOwn ? `<img src="${message.sender.profile_pic || '/static/dist/img/user-default.png'}" class="message-avatar">` : ''}
+            
+            <div class="message-content">
+                <div class="message-actions">
+                    <button type="button" onclick="replyToMessage(${message.id})" title="Reply">
+                        <i class="fas fa-reply"></i>
+                    </button>
+                    <button type="button" onclick="reactToMessage(${message.id}, 'LIKE')" title="Like">
+                        <i class="fas fa-thumbs-up"></i>
+                    </button>
+                </div>
+                
+                <div class="message-info">
+                    ${!isOwn ? `<strong>${message.sender.name}</strong>` : ''}
+                    <span class="message-time">${new Date(message.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                </div>
+
+                ${message.reply_to ? `
+                    <div class="reply-preview">
+                        <small><strong>${message.reply_to.sender_name}:</strong> ${message.reply_to.content}</small>
+                    </div>
+                ` : ''}
+
+                <p class="message-text">${message.content.replace(/\n/g, '<br>')}</p>
+            </div>
+            
+            ${isOwn ? `<img src="${message.sender.profile_pic || '/static/dist/img/user-default.png'}" class="message-avatar">` : ''}
+        </div>
+    `;
+    
+    messagesContainer.append(messageHtml);
+    scrollToBottom();
+}
+
+function replyToMessage(messageId) {
+    const messageElement = $(`.message[data-message-id="${messageId}"]`);
+    const senderName = messageElement.find('.message-info strong').text() || 'You';
+    const content = messageElement.find('.message-text').text();
+    
+    replyToMessageId = messageId;
+    
+    $('#replyToUser').text(senderName);
+    $('#replyToContent').text(content.substring(0, 100) + (content.length > 100 ? '...' : ''));
+    $('#replyPreview').show();
+    
+    $('#messageInput').focus();
+}
+
+function cancelReply() {
+    replyToMessageId = null;
+    $('#replyPreview').hide();
+}
+
+function reactToMessage(messageId, reactionType) {
+    chatSocket.send(JSON.stringify({
+        type: 'message_reaction',
+        message_id: messageId,
+        reaction_type: reactionType
+    }));
+}
+
+function handleMessageReaction(data) {
+    // Update reaction display
+    const messageElement = $(`.message[data-message-id="${data.message_id}"]`);
+    // Implementation for updating reaction UI
+}
+
+function scrollToBottom() {
+    const messagesContainer = $('#chatMessages');
+    messagesContainer.scrollTop(messagesContainer[0].scrollHeight);
+}
+
+function leaveGroup() {
+    if (confirm('Are you sure you want to leave this group?')) {
+        $.post('{% url "social:leave_group" group.id %}')
+            .done(function() {
+                window.location.href = '{% url "social:dashboard" %}';
+            })
+            .fail(function() {
+                alert('Failed to leave group');
+            });
+    }
+}
+
+function openDriveFilePicker() {
+    $('#driveFilePickerModal').modal('show');
+    loadDriveFiles();
+}
+
+function loadDriveFiles() {
+    $.get('/social/api/drive/files/')
+        .done(function(data) {
+            let html = '';
+            data.files.forEach(file => {
+                if (!file.isFolder && file.canShare) {
+                    html += `
+                        <div class="drive-file-item p-2 border rounded mb-2" style="cursor: pointer;" onclick="selectDriveFile('${file.id}', '${file.name}')">
+                            <div class="d-flex align-items-center">
+                                <i class="fab fa-google-drive text-primary mr-2"></i>
+                                <div>
+                                    <div class="font-weight-bold">${file.name}</div>
+                                    <small class="text-muted">${file.mimeType}</small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+            $('#driveFileList').html(html || '<div class="text-center text-muted">No files available</div>');
+        })
+        .fail(function() {
+            $('#driveFileList').html('<div class="alert alert-danger">Failed to load Drive files</div>');
+        });
+}
+
+function selectDriveFile(fileId, fileName) {
+    $.post(`/social/api/drive/files/${fileId}/attach/`, {
+        group_id: {{ group.id }},
+        content: `📎 ${fileName}`
+    })
+    .done(function() {
+        $('#driveFilePickerModal').modal('hide');
+        // Message will be added via WebSocket
+    })
+    .fail(function(xhr) {
+        alert(xhr.responseJSON?.error || 'Failed to attach file');
+    });
+}
+
+function uploadFile(file, messageType) {
+    // Implementation for file upload
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('group_id', {{ group.id }});
+    formData.append('message_type', messageType);
+    
+    // Show upload progress
+    const messageInput = $('#messageInput');
+    messageInput.prop('disabled', true).val('Uploading...');
+    
+    $.ajax({
+        url: '/social/api/upload-file/',
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(data) {
+            messageInput.prop('disabled', false).val('');
+            // File message will be added via WebSocket
+        },
+        error: function(xhr) {
+            messageInput.prop('disabled', false).val('');
+            alert(xhr.responseJSON?.error || 'Failed to upload file');
+        }
+    });
+}
+</script>
+{% endblock %}

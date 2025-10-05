@@ -1,0 +1,448 @@
+import json
+import logging
+from channels.generic.websocket import AsyncWebsocketConsumer
+from channels.db import database_sync_to_async
+from django.contrib.auth.models import AnonymousUser
+from django.utils import timezone
+from main_app.models import CustomUser, ChatGroup, ChatMessage, ChatGroupMember, ChatMessageDelivery
+
+logger = logging.getLogger(__name__)
+
+
+class ChatConsumer(AsyncWebsocketConsumer):
+    """WebSocket consumer for real-time chat messaging"""
+    
+    async def connect(self):
+        self.group_id = self.scope['url_route']['kwargs']['group_id']
+        self.room_group_name = f'chat_{self.group_id}'
+        self.user = self.scope["user"]
+        
+        # Check if user is authenticated
+        if isinstance(self.user, AnonymousUser):
+            await self.close()
+            return
+        
+        # Check if user has access to this group
+        has_access = await self.check_group_access()
+        if not has_access:
+            await self.close()
+            return
+        
+        # Join room group
+        await self.channel_layer.group_add(
+            self.room_group_name,
+            self.channel_name
+        )
+        
+        await self.accept()
+        
+        # Update user online status
+        await self.update_user_status(True)
+        
+        # Notify group about user joining
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'user_status',
+                'user_id': self.user.id,
+                'status': 'online',
+                'timestamp': timezone.now().isoformat()
+            }
+        )
+    
+    async def disconnect(self, close_code):
+        # Update user online status
+        await self.update_user_status(False)
+        
+        # Notify group about user leaving
+        if hasattr(self, 'room_group_name'):
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'user_status',
+                    'user_id': self.user.id,
+                    'status': 'offline',
+                    'timestamp': timezone.now().isoformat()
+                }
+            )
+            
+            # Leave room group
+            await self.channel_layer.group_discard(
+                self.room_group_name,
+                self.channel_name
+            )
+    
+    async def receive(self, text_data):
+        try:
+            text_data_json = json.loads(text_data)
+            message_type = text_data_json.get('type')
+            
+            if message_type == 'chat_message':
+                await self.handle_chat_message(text_data_json)
+            elif message_type == 'typing_indicator':
+                await self.handle_typing_indicator(text_data_json)
+            elif message_type == 'message_read':
+                await self.handle_message_read(text_data_json)
+            elif message_type == 'message_reaction':
+                await self.handle_message_reaction(text_data_json)
+            else:
+                logger.warning(f"Unknown message type: {message_type}")
+                
+        except json.JSONDecodeError:
+            logger.error("Invalid JSON received")
+        except Exception as e:
+            logger.error(f"Error processing message: {str(e)}")
+    
+    async def handle_chat_message(self, data):
+        """Handle incoming chat messages"""
+        content = data.get('content', '').strip()
+        reply_to_id = data.get('reply_to')
+        
+        logger.info(f"Handling chat message from user {self.user.id}: {content[:50]}...")
+        
+        if not content:
+            logger.warning(f"Empty message content from user {self.user.id}")
+            return
+        
+        # Save message to database
+        message = await self.save_message(content, reply_to_id)
+        
+        if message:
+            logger.info(f"Message saved with ID {message.id}")
+            
+            # Serialize message for WebSocket transmission
+            serialized_message = await self.serialize_message(message)
+            logger.info(f"Message serialized: {serialized_message['id']}")
+            
+            # Send message to room group
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'chat_message',
+                    'message': serialized_message
+                }
+            )
+            
+            logger.info(f"Message sent to room group {self.room_group_name}")
+            
+            # Create delivery records for all group members
+            await self.create_delivery_records(message)
+            logger.info(f"Delivery records created for message {message.id}")
+        else:
+            logger.error(f"Failed to save message from user {self.user.id}")
+    
+    async def handle_typing_indicator(self, data):
+        """Handle typing indicators"""
+        is_typing = data.get('is_typing', False)
+        
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'typing_indicator',
+                'user_id': self.user.id,
+                'user_name': f"{self.user.first_name} {self.user.last_name}",
+                'is_typing': is_typing,
+                'timestamp': timezone.now().isoformat()
+            }
+        )
+    
+    async def handle_message_read(self, data):
+        """Handle message read receipts"""
+        message_id = data.get('message_id')
+        
+        if message_id:
+            await self.mark_message_read(message_id)
+            
+            # Notify sender about read receipt
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'message_read',
+                    'message_id': message_id,
+                    'user_id': self.user.id,
+                    'timestamp': timezone.now().isoformat()
+                }
+            )
+    
+    async def handle_message_reaction(self, data):
+        """Handle message reactions"""
+        message_id = data.get('message_id')
+        reaction_type = data.get('reaction_type')
+        
+        if message_id and reaction_type:
+            reaction = await self.toggle_reaction(message_id, reaction_type)
+            
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'message_reaction',
+                    'message_id': message_id,
+                    'user_id': self.user.id,
+                    'reaction_type': reaction_type,
+                    'action': 'added' if reaction else 'removed',
+                    'timestamp': timezone.now().isoformat()
+                }
+            )
+    
+    # WebSocket message handlers
+    async def chat_message(self, event):
+        """Send chat message to WebSocket"""
+        try:
+            logger.info(f"Sending chat message to WebSocket: {event['message']['id']}")
+            await self.send(text_data=json.dumps({
+                'type': 'chat_message',
+                'message': event['message']
+            }))
+            logger.info(f"Chat message sent successfully to WebSocket")
+        except Exception as e:
+            logger.error(f"Error sending chat message to WebSocket: {str(e)}")
+    
+    async def typing_indicator(self, event):
+        """Send typing indicator to WebSocket"""
+        # Don't send typing indicator back to the sender
+        if event['user_id'] != self.user.id:
+            await self.send(text_data=json.dumps({
+                'type': 'typing_indicator',
+                'user_id': event['user_id'],
+                'user_name': event['user_name'],
+                'is_typing': event['is_typing'],
+                'timestamp': event['timestamp']
+            }))
+    
+    async def message_read(self, event):
+        """Send read receipt to WebSocket"""
+        await self.send(text_data=json.dumps({
+            'type': 'message_read',
+            'message_id': event['message_id'],
+            'user_id': event['user_id'],
+            'timestamp': event['timestamp']
+        }))
+    
+    async def message_reaction(self, event):
+        """Send reaction to WebSocket"""
+        await self.send(text_data=json.dumps({
+            'type': 'message_reaction',
+            'message_id': event['message_id'],
+            'user_id': event['user_id'],
+            'reaction_type': event['reaction_type'],
+            'action': event['action'],
+            'timestamp': event['timestamp']
+        }))
+    
+    async def user_status(self, event):
+        """Send user status update to WebSocket"""
+        # Don't send status update back to the user themselves
+        if event['user_id'] != self.user.id:
+            await self.send(text_data=json.dumps({
+                'type': 'user_status',
+                'user_id': event['user_id'],
+                'status': event['status'],
+                'timestamp': event['timestamp']
+            }))
+    
+    # Database operations
+    @database_sync_to_async
+    def check_group_access(self):
+        """Check if user has access to the chat group"""
+        try:
+            group = ChatGroup.objects.get(id=self.group_id, is_active=True)
+            return ChatGroupMember.objects.filter(
+                group=group,
+                user=self.user,
+                is_active=True
+            ).exists()
+        except ChatGroup.DoesNotExist:
+            return False
+    
+    @database_sync_to_async
+    def save_message(self, content, reply_to_id=None):
+        """Save message to database"""
+        try:
+            group = ChatGroup.objects.get(id=self.group_id)
+            reply_to = None
+            
+            if reply_to_id:
+                try:
+                    reply_to = ChatMessage.objects.get(id=reply_to_id, group=group)
+                except ChatMessage.DoesNotExist:
+                    pass
+            
+            message = ChatMessage.objects.create(
+                group=group,
+                sender=self.user,
+                content=content,
+                reply_to=reply_to,
+                message_type='TEXT'
+            )
+            return message
+        except Exception as e:
+            logger.error(f"Error saving message: {str(e)}")
+            return None
+    
+    @database_sync_to_async
+    def serialize_message(self, message):
+        """Serialize message for WebSocket transmission"""
+        try:
+            return {
+                'id': message.id,
+                'content': message.content,
+                'sender': {
+                    'id': message.sender.id,
+                    'name': f"{message.sender.first_name} {message.sender.last_name}",
+                    'profile_pic': message.sender.profile_pic.url if message.sender.profile_pic and hasattr(message.sender.profile_pic, 'url') else None
+                },
+                'message_type': message.message_type,
+                'reply_to': {
+                    'id': message.reply_to.id,
+                    'content': message.reply_to.content[:100] + '...' if len(message.reply_to.content) > 100 else message.reply_to.content,
+                    'sender_name': f"{message.reply_to.sender.first_name} {message.reply_to.sender.last_name}"
+                } if message.reply_to else None,
+                'created_at': message.created_at.isoformat(),
+                'is_edited': message.is_edited,
+                'edited_at': message.edited_at.isoformat() if message.edited_at else None
+            }
+        except Exception as e:
+            logger.error(f"Error serializing message: {str(e)}")
+            # Return a minimal message structure if serialization fails
+            return {
+                'id': message.id,
+                'content': message.content,
+                'sender': {
+                    'id': message.sender.id,
+                    'name': f"{message.sender.first_name} {message.sender.last_name}",
+                    'profile_pic': None
+                },
+                'message_type': message.message_type,
+                'reply_to': None,
+                'created_at': message.created_at.isoformat(),
+                'is_edited': False,
+                'edited_at': None
+            }
+    
+    @database_sync_to_async
+    def create_delivery_records(self, message):
+        """Create delivery records for all group members"""
+        try:
+            group_members = ChatGroupMember.objects.filter(
+                group=message.group,
+                is_active=True
+            ).exclude(user=message.sender)
+            
+            delivery_records = []
+            for member in group_members:
+                delivery_records.append(
+                    ChatMessageDelivery(
+                        message=message,
+                        user=member.user,
+                        status='SENT'
+                    )
+                )
+            
+            ChatMessageDelivery.objects.bulk_create(delivery_records)
+        except Exception as e:
+            logger.error(f"Error creating delivery records: {str(e)}")
+    
+    @database_sync_to_async
+    def mark_message_read(self, message_id):
+        """Mark message as read"""
+        try:
+            ChatMessageDelivery.objects.filter(
+                message_id=message_id,
+                user=self.user
+            ).update(
+                status='READ',
+                read_at=timezone.now()
+            )
+        except Exception as e:
+            logger.error(f"Error marking message as read: {str(e)}")
+    
+    @database_sync_to_async
+    def toggle_reaction(self, message_id, reaction_type):
+        """Toggle message reaction"""
+        try:
+            from main_app.models import ChatMessageReaction
+            
+            reaction, created = ChatMessageReaction.objects.get_or_create(
+                message_id=message_id,
+                user=self.user,
+                reaction_type=reaction_type
+            )
+            
+            if not created:
+                reaction.delete()
+                return False
+            return True
+        except Exception as e:
+            logger.error(f"Error toggling reaction: {str(e)}")
+            return False
+    
+    @database_sync_to_async
+    def update_user_status(self, is_online):
+        """Update user online status"""
+        try:
+            self.user.is_online = is_online
+            self.user.last_seen = timezone.now()
+            self.user.save(update_fields=['is_online', 'last_seen'])
+        except Exception as e:
+            logger.error(f"Error updating user status: {str(e)}")
+
+
+class NotificationConsumer(AsyncWebsocketConsumer):
+    """WebSocket consumer for real-time notifications"""
+    
+    async def connect(self):
+        self.user = self.scope["user"]
+        
+        # Check if user is authenticated
+        if isinstance(self.user, AnonymousUser):
+            await self.close()
+            return
+        
+        self.notification_group_name = f'notifications_{self.user.id}'
+        
+        # Join notification group
+        await self.channel_layer.group_add(
+            self.notification_group_name,
+            self.channel_name
+        )
+        
+        await self.accept()
+    
+    async def disconnect(self, close_code):
+        # Leave notification group
+        if hasattr(self, 'notification_group_name'):
+            await self.channel_layer.group_discard(
+                self.notification_group_name,
+                self.channel_name
+            )
+    
+    async def receive(self, text_data):
+        try:
+            text_data_json = json.loads(text_data)
+            message_type = text_data_json.get('type')
+            
+            if message_type == 'mark_notification_read':
+                notification_id = text_data_json.get('notification_id')
+                await self.mark_notification_read(notification_id)
+                
+        except json.JSONDecodeError:
+            logger.error("Invalid JSON received in notification consumer")
+        except Exception as e:
+            logger.error(f"Error processing notification message: {str(e)}")
+    
+    async def notification_message(self, event):
+        """Send notification to WebSocket"""
+        await self.send(text_data=json.dumps({
+            'type': 'notification',
+            'notification': event['notification']
+        }))
+    
+    @database_sync_to_async
+    def mark_notification_read(self, notification_id):
+        """Mark notification as read"""
+        try:
+            # This would integrate with existing notification system
+            # For now, we'll just log it
+            logger.info(f"Marking notification {notification_id} as read for user {self.user.id}")
+        except Exception as e:
+            logger.error(f"Error marking notification as read: {str(e)}")

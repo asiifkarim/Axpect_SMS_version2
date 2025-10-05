@@ -1,0 +1,204 @@
+{% extends "main_app/base.html" %}
+{% load static %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block custom_css %}
+<style>
+.drive-status-icon {
+    font-size: 5rem;
+    margin-bottom: 1rem;
+}
+
+.file-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    padding: 1rem;
+}
+
+.file-item {
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: white;
+}
+
+.file-item:hover {
+    border-color: #007bff;
+    box-shadow: 0 2px 8px rgba(0,123,255,0.15);
+    transform: translateY(-2px);
+}
+
+.file-icon {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.folder-icon {
+    color: #ffc107;
+}
+
+.image-icon {
+    color: #28a745;
+}
+
+.pdf-icon {
+    color: #dc3545;
+}
+
+.word-icon {
+    color: #007bff;
+}
+
+.excel-icon {
+    color: #28a745;
+}
+
+.drive-file-icon {
+    color: #4285f4;
+}
+
+.file-name {
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+    word-break: break-word;
+}
+
+.file-info {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    {% if is_connected %}
+        <!-- Connected State with Files -->
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fab fa-google-drive mr-2"></i>Your Google Drive Files
+                    </h3>
+                    <div class="card-tools">
+                        <form method="post" action="{% url 'social:google_drive_disconnect' %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Are you sure you want to disconnect Google Drive?')">
+                                <i class="fas fa-unlink"></i> Disconnect
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    {% if folders or files %}
+                        <div class="file-grid">
+                            <!-- Folders -->
+                            {% for folder in folders %}
+                                <div class="file-item" onclick="openFolder('{{ folder.id }}')">
+                                    <i class="fas fa-folder file-icon folder-icon"></i>
+                                    <div class="file-name">{{ folder.name }}</div>
+                                    <div class="file-info">Folder</div>
+                                </div>
+                            {% endfor %}
+                            
+                            <!-- Files -->
+                            {% for file in files %}
+                                <div class="file-item" onclick="shareFile('{{ file.id }}', '{{ file.name }}')">
+                                    {% if 'image' in file.mimeType %}
+                                        <i class="fas fa-image file-icon image-icon"></i>
+                                    {% elif 'pdf' in file.mimeType %}
+                                        <i class="fas fa-file-pdf file-icon pdf-icon"></i>
+                                    {% elif 'word' in file.mimeType or 'document' in file.mimeType %}
+                                        <i class="fas fa-file-word file-icon word-icon"></i>
+                                    {% elif 'sheet' in file.mimeType or 'excel' in file.mimeType %}
+                                        <i class="fas fa-file-excel file-icon excel-icon"></i>
+                                    {% else %}
+                                        <i class="fab fa-google-drive file-icon drive-file-icon"></i>
+                                    {% endif %}
+                                    
+                                    <div class="file-name">{{ file.name }}</div>
+                                    <div class="file-info">
+                                        {% if file.size %}
+                                            {{ file.size|filesizeformat }}
+                                        {% else %}
+                                            Google Doc
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-folder-open text-muted" style="font-size: 4rem;"></i>
+                            <h4 class="mt-3">No files found</h4>
+                            <p class="text-muted">Your Google Drive appears to be empty or you don't have access to any files.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% elif needs_reconnection %}
+        <!-- Needs Reconnection State -->
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-exclamation-triangle drive-status-icon text-warning"></i>
+                    <h3>Google Drive Reconnection Required</h3>
+                    <p class="text-muted mb-4">
+                        Your Google Drive connection has expired or is no longer valid. 
+                        Please reconnect your account to continue sharing files.
+                    </p>
+                    
+                    {% if drive_integration %}
+                        <div class="alert alert-info text-left mb-4">
+                            <h5><i class="fas fa-info-circle mr-2"></i>Connection Details</h5>
+                            <p class="mb-1"><strong>Connected Account:</strong> {{ drive_integration.google_email }}</p>
+                            <p class="mb-1"><strong>Connected Since:</strong> {{ drive_integration.connected_at|date:"F d, Y" }}</p>
+                            {% if drive_integration.last_error %}
+                                <p class="mb-0"><strong>Last Error:</strong> {{ drive_integration.last_error }}</p>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                    
+                    <a href="{% url 'social:google_drive_auth' %}" class="btn btn-primary btn-lg">
+                        <i class="fab fa-google mr-2"></i>Reconnect Google Drive
+                    </a>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <!-- Not Connected State -->
+        <div class="col-md-6 mx-auto">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fab fa-google-drive drive-status-icon text-muted"></i>
+                    <h3>Connect Your Google Drive</h3>
+                    <p class="text-muted mb-4">Connect your Google Drive account to share files directly in chat conversations.</p>
+                    
+                    <a href="{% url 'social:google_drive_auth' %}" class="btn btn-primary btn-lg">
+                        <i class="fab fa-google mr-2"></i>Connect Google Drive
+                    </a>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+function openFolder(folderId) {
+    window.location.href = `{% url 'social:drive_file_browser' %}?folder=${folderId}`;
+}
+
+function shareFile(fileId, fileName) {
+    alert(`File sharing feature coming soon!\nFile: ${fileName}\nID: ${fileId}`);
+    // TODO: Implement file sharing modal
+}
+</script>
+{% endblock %}

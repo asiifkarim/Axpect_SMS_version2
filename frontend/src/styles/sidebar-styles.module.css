@@ -1,0 +1,230 @@
+/* Sidebar Brand Section Styles - Matching AdminLTE Navigation */
+.brand-section {
+  padding: 15px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: #343a40;
+  position: relative;
+}
+
+/* Sidebar Spacer - Space between brand and menu */
+.sidebar-spacer {
+  height: 20px;
+  background: #343a40;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.brand-section:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.company-logo {
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.logo-image {
+  width: 25px;
+  height: 25px;
+  border-radius: 4px;
+  object-fit: contain;
+  object-position: center;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 2px;
+  box-sizing: border-box;
+}
+
+.logo-image:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.company-name {
+  margin-top: 8px;
+  text-align: center;
+  width: 100%;
+}
+
+.brand-text {
+  color: #ffffff !important;
+  font-size: 12px;
+  font-weight: 700 !important;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  text-align: center;
+  display: block;
+  line-height: 1.2;
+  margin: 0;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .brand-section {
+    padding: 12px;
+  }
+  
+  .logo-image {
+    width: 22px;
+    height: 22px;
+  }
+  
+  .brand-text {
+    font-size: 11px;
+    font-weight: 700 !important;
+    color: #ffffff !important;
+    opacity: 1 !important;
+  }
+  
+  .sidebar-spacer {
+    height: 15px;
+  }
+}
+
+/* Dark Theme Support */
+@media (prefers-color-scheme: dark) {
+  .brand-section,
+  .sidebar-spacer {
+    background: #2c3e50;
+  }
+}
+
+/* Focus states for accessibility */
+.logo-image:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+}
+
+/* Brand image styling for fallback sidebar */
+.brand-image {
+  width: 25px !important;
+  height: 25px !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  background: transparent !important;
+  padding: 2px !important;
+  box-sizing: border-box !important;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .brand-section,
+  .sidebar-spacer {
+    border: 1px solid white;
+  }
+  
+  .logo-image,
+  .brand-image {
+    border: 2px solid white;
+  }
+}
+
+/* Sidebar Collapse Styles */
+.sidebar-collapse .main-sidebar {
+  margin-left: -250px;
+}
+
+.sidebar-collapse .content-wrapper {
+  margin-left: 0;
+}
+
+.sidebar-collapse .brand-section {
+  padding: 10px;
+}
+
+.sidebar-collapse .brand-text {
+  display: none;
+}
+
+.sidebar-collapse .company-logo {
+  margin-bottom: 0;
+}
+
+.sidebar-collapse .logo-image {
+  width: 30px;
+  height: 30px;
+}
+
+/* Responsive sidebar collapse */
+@media (max-width: 768px) {
+  .main-sidebar {
+    margin-left: -250px;
+  }
+  
+  .sidebar-open .main-sidebar {
+    margin-left: 0;
+  }
+  
+  .sidebar-open .content-wrapper {
+    margin-left: 0;
+  }
+}
+
+/* Force white color for brand text - override all other styles */
+.brand-section .brand-text,
+.brand-section .company-name .brand-text,
+.brand-section span.brand-text,
+.brand-text.font-weight-light {
+  color: #ffffff !important;
+  opacity: 1 !important;
+  filter: none !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Override AdminLTE default brand text styles */
+.brand-text.font-weight-light {
+  font-weight: 700 !important;
+  color: #ffffff !important;
+}
+
+/* Collapsible Menu Styles */
+.nav-item.has-treeview > .nav-link {
+  position: relative;
+}
+
+.nav-item.has-treeview > .nav-link .right {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+}
+
+.nav-item.has-treeview.menu-open > .nav-link .right {
+}
+
+.nav-treeview {
+  display: none;
+  padding-left: 20px;
+}
+
+.nav-item.has-treeview.menu-open > .nav-treeview {
+  display: block;
+}
+
+.nav-treeview .nav-link {
+  padding-left: 20px;
+  font-size: 0.9rem;
+}
+
+.nav-treeview .nav-link .nav-icon {
+  font-size: 0.8rem;
+}
+
+/* Smooth transitions for collapsible menus */
+.nav-treeview {
+  overflow: hidden;
+}
+
+/* Hover effects for collapsible headers */
+.nav-item.has-treeview > .nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Active state for collapsible headers */
+.nav-item.has-treeview > .nav-link.active {
+  background-color: rgba(255, 255, 255, 0.15);
+}

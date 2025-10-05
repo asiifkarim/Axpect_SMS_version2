@@ -1,0 +1,12 @@
+{% load social_filters %}
+
+{% if reactions %}
+    <div class="message-reactions">
+        {% for reaction_type, reaction_data in reactions.items %}
+            <span class="reaction {% if reaction_data.user_reacted %}active{% endif %}" 
+                  onclick="reactToMessage({{ message.id }}, '{{ reaction_type|upper }}')">
+                {{ reaction_type|lookup_reaction_emoji }} {{ reaction_data.count }}
+            </span>
+        {% endfor %}
+    </div>
+{% endif %}
