@@ -15,6 +15,7 @@ uvloop>=0.17.0  # Performance improvement for asyncio
 celery>=5.3.0
 django-celery-beat>=2.5.0
 redis>=4.6.0
+django-redis>=5.4.0
 
 # Database drivers
 psycopg2-binary>=2.9.0  # PostgreSQL
