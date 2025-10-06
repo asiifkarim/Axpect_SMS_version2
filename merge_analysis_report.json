@@ -1,0 +1,536 @@
+{
+  "file_conflicts": [
+    {
+      "file": "tests.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "views.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "notification_service.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "EditSalaryView.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "middleware.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "celery.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "forms.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "routing.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "urls.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "seed_demo.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "serializers.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "0001_initial.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "deploy.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "manage.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "settings_production.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "gunicorn.conf.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "tasks.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "debug_assignments.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "run.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "debug_employee_dashboard.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "admin.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "debug_employee_view.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "jobcard_views.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "ai_processor.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "employee_views.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "asgi.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "settings.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "quick_test_assignments.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "manager_views.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "models.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "wsgi.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "EmailBackend.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "notification_views.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "consumers.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "apps.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "__init__.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "runserver_ws.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "ceo_views.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    },
+    {
+      "file": "manage_production.py",
+      "type": "filename_conflict",
+      "severity": "medium"
+    }
+  ],
+  "dependency_conflicts": [],
+  "model_conflicts": [
+    {
+      "model": "GPSRoute",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "Department",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "Targets",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "Attendance",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "OrderItem",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "BusinessCalendar",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "Admin",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "Item",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "Payment",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "EmployeeGPSAttendance",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "UserNotification",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "Manager",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "Customer",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "EmployeeLocationSession",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "JobCardGeneralAssignment",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "PriceList",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "EmployeeTask",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "StaffScoresDaily",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "FeedbackEmployee",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "EmployeeSalary",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "JobCardAction",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "LeaveReportEmployee",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "Notification",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "LeaveReportManager",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "GPSLocationHistory",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "CustomerCapability",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "JobCard",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "Division",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "JobCardComment",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "CityWeekdayPlan",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "RateAlert",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "NotificationEmployee",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "StaffCapability",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "FeedbackManager",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "PaymentInstrument",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "JobCardTimeLog",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "Employee",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "CommunicationLog",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "CustomerContact",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "City",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "AttendanceReport",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "Order",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "NotificationManager",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "JobCardVersionHistory",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "GPSGeofence",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    },
+    {
+      "model": "AIProcessingLog",
+      "current_file": "external_axpect_sms\\main_app\\models.py",
+      "external_file": "external_axpect_sms\\main_app\\models.py",
+      "severity": "high"
+    }
+  ],
+  "url_conflicts": [
+    {
+      "message": "URL patterns need manual review",
+      "current_files": [
+        "ai\\urls.py",
+        "api\\urls.py",
+        "axpect_tech_config\\urls.py",
+        "main_app\\urls.py",
+        "social\\urls.py",
+        "external_axpect_sms\\api\\urls.py",
+        "external_axpect_sms\\axpect_tech_config\\urls.py",
+        "external_axpect_sms\\main_app\\urls.py",
+        "venv\\Lib\\site-packages\\rest_framework\\urls.py",
+        "venv\\Lib\\site-packages\\django\\contrib\\admindocs\\urls.py",
+        "venv\\Lib\\site-packages\\django\\contrib\\auth\\urls.py",
+        "venv\\Lib\\site-packages\\django\\contrib\\flatpages\\urls.py",
+        "venv\\Lib\\site-packages\\django\\contrib\\staticfiles\\urls.py",
+        "venv\\Lib\\site-packages\\django\\core\\checks\\urls.py",
+        "venv\\Lib\\site-packages\\pip\\_internal\\utils\\urls.py",
+        "venv\\Lib\\site-packages\\rest_framework\\utils\\urls.py"
+      ],
+      "external_files": [
+        "external_axpect_sms\\api\\urls.py",
+        "external_axpect_sms\\axpect_tech_config\\urls.py",
+        "external_axpect_sms\\main_app\\urls.py"
+      ],
+      "severity": "medium"
+    }
+  ],
+  "settings_conflicts": [],
+  "migration_analysis": {},
+  "recommendations": [
+    {
+      "type": "file_conflicts",
+      "message": "Found 39 file name conflicts",
+      "action": "Rename conflicting files or merge content carefully"
+    },
+    {
+      "type": "model_conflicts",
+      "message": "Found 46 model name conflicts",
+      "action": "Rename models or create bridge models"
+    },
+    {
+      "type": "backup",
+      "message": "Create full backup before merging",
+      "action": "Run ./scripts/backup.sh"
+    },
+    {
+      "type": "testing",
+      "message": "Set up comprehensive testing",
+      "action": "Create merge branch and test thoroughly"
+    },
+    {
+      "type": "monitoring",
+      "message": "Monitor system during merge",
+      "action": "Watch Grafana dashboards and health checks"
+    }
+  ]
+}

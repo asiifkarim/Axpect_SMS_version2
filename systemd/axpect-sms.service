@@ -1,0 +1,31 @@
+[Unit]
+Description=Axpect SMS Django Application (Daphne ASGI)
+After=network.target postgresql.service redis.service
+Wants=postgresql.service redis.service
+
+[Service]
+Type=exec
+User=axpect
+Group=axpect
+WorkingDirectory=/opt/axpect_sms
+Environment=DJANGO_SETTINGS_MODULE=axpect_tech_config.settings
+EnvironmentFile=/opt/axpect_sms/.env
+ExecStart=/opt/axpect_sms/venv/bin/daphne -b 0.0.0.0 -p 8000 --access-log /var/log/axpect_sms/daphne_access.log axpect_tech_config.asgi:application
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+Restart=on-failure
+RestartSec=5
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/axpect_sms/media /opt/axpect_sms/logs /var/log/axpect_sms
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+[Install]
+WantedBy=multi-user.target

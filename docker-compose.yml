@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=False
+      - DATABASE_URL=postgres://axpect_user:axpect_pass@db:5432/axpect_sms
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CHANNEL_REDIS_URL=redis://redis:6379/1
+      - CACHE_REDIS_URL=redis://redis:6379/2
+      - DEFENDER_REDIS_URL=redis://redis:6379/3
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./media:/app/media
+      - ./logs:/app/logs
+    command: daphne -b 0.0.0.0 -p 8000 axpect_tech_config.asgi:application
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=axpect_sms
+      - POSTGRES_USER=axpect_user
+      - POSTGRES_PASSWORD=axpect_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  celery:
+    build: .
+    command: celery -A axpect_tech_config worker -l info
+    environment:
+      - DEBUG=False
+      - DATABASE_URL=postgres://axpect_user:axpect_pass@db:5432/axpect_sms
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./media:/app/media
+      - ./logs:/app/logs
+
+  celery-beat:
+    build: .
+    command: celery -A axpect_tech_config beat -l info
+    environment:
+      - DEBUG=False
+      - DATABASE_URL=postgres://axpect_user:axpect_pass@db:5432/axpect_sms
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./media:/app/media
+      - ./logs:/app/logs
+
+volumes:
+  postgres_data:
+  redis_data:

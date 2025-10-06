@@ -25,6 +25,11 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),
     path('social/', include('social.urls')),
+    path('chatbot/', include('ai.urls')),
+    
+    # Health checks and monitoring
+    path('health/', include('health_check.urls')),
+    path('metrics/', include('django_prometheus.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 
 urlpatterns += staticfiles_urlpatterns()

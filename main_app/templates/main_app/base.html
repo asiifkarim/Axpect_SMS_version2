@@ -175,12 +175,14 @@
     });
     </script>
     
-    
-    
-    
     {% block custom_js %}
 
     {% endblock custom_js %}
+    
+    <!-- Floating AI Chatbot -->
+    {% if user.is_authenticated %}
+        {% include "ai/floating_chatbot.html" %}
+    {% endif %}
 </body>
 
 </html>

@@ -1,45 +1,60 @@
 # Core Django dependencies
-Django
-djangorestframework
-django-cors-headers
-python-dotenv>=0.19.0
-Pillow>=8.3.0
-dj-database-url>=0.5.0
-whitenoise>=5.3.0
+Django>=4.2.0,<5.0
+djangorestframework>=3.14.0
+django-cors-headers>=4.0.0
+python-dotenv>=1.0.0
+Pillow>=10.0.0
+dj-database-url>=2.0.0
+whitenoise>=6.5.0
+
+# Production ASGI server
+daphne>=4.0.0
+uvloop>=0.17.0  # Performance improvement for asyncio
 
 # Task queue and caching
-celery>=5.2.0
-django-celery-beat>=2.2.0
-redis>=4.3.0
+celery>=5.3.0
+django-celery-beat>=2.5.0
+redis>=4.6.0
+
+# Database drivers
+psycopg2-binary>=2.9.0  # PostgreSQL
+# mysqlclient>=2.2.0  # MySQL (uncomment if needed)
 
 # Communication services
-twilio>=7.0.0
+twilio>=8.0.0
 
 # Google services
 google-api-python-client>=2.0.0
 google-auth-httplib2>=0.1.0
-google-auth-oauthlib>=0.5.0
+google-auth-oauthlib>=1.0.0
 
 # Data processing
-pandas>=1.3.0
-numpy>=1.21.0
-scikit-learn>=1.0.0
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
 
-# NLP and AI (optional - uncomment when needed)
-# openai>=0.28.0
-# nltk>=3.6.0
-# spacy>=3.4.0
+# AI and NLP
+openai>=1.0.0
+google-generativeai>=0.3.0
 
 # WebSocket support
 channels>=4.0.0
 channels-redis>=4.1.0
-daphne>=4.0.0
-django-extensions>=3.1.0
+django-extensions>=3.2.0
 
-# Security
-pyOpenSSL>=20.0.0
-cryptography>=3.4.0
+# Security and monitoring
+pyOpenSSL>=23.0.0
+cryptography>=41.0.0
+django-ratelimit>=4.0.0
+django-defender>=0.9.0
 
-google-api-python-client
-google-auth-httplib2
-google-auth-oauthlib
+# Production utilities
+gunicorn>=21.0.0  # Alternative WSGI server
+sentry-sdk[django]>=1.32.0  # Error tracking
+django-health-check>=3.17.0  # Health checks
+django-prometheus>=2.3.0  # Metrics
+python-json-logger>=2.0.0  # Structured logging
+
+# Performance
+django-cachalot>=2.6.0  # ORM caching
+django-compressor>=4.4.0  # Static file compression

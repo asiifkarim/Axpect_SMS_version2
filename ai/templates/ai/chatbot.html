@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Assistant - Staff Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .chat-container {
+            height: calc(100vh - 200px);
+        }
+        .message-bubble {
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        .typing-indicator {
+            display: none;
+        }
+        .typing-indicator.show {
+            display: flex;
+        }
+        .typing-dots {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .typing-dots span {
+            height: 8px;
+            width: 8px;
+            background-color: #9CA3AF;
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+        .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+        .markdown-content h3 {
+            font-weight: bold;
+            margin: 8px 0 4px 0;
+        }
+        .markdown-content ul {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+        .markdown-content li {
+            margin: 4px 0;
+        }
+        .markdown-content strong {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <div class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <i class="fas fa-robot text-blue-600 text-2xl"></i>
+                        <h1 class="text-2xl font-bold text-gray-900">AI Assistant</h1>
+                    </div>
+                    <div class="hidden sm:block text-sm text-gray-500">
+                        Staff Management System
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-sm text-gray-600">
+                        Welcome, <span class="font-medium">{{ user_name }}</span>
+                        <span class="text-xs text-gray-400">({{ user_type }})</span>
+                    </div>
+                    <a href="/" class="text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-home"></i> Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Chat Container -->
+    <div class="max-w-4xl mx-auto p-4">
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            <!-- Chat Header -->
+            <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                        <i class="fas fa-robot text-lg"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-semibold">AI Staff Assistant</h2>
+                        <p class="text-sm text-blue-100">Ask me about tasks, attendance, employees, and more!</p>
+                    </div>
+                    <div class="ml-auto">
+                        <div class="flex items-center space-x-1 text-green-300">
+                            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                            <span class="text-xs">Online</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Messages Area -->
+            <div id="chatMessages" class="chat-container overflow-y-auto p-4 space-y-4 bg-gray-50">
+                <!-- Welcome Message -->
+                <div class="flex items-start space-x-3">
+                    <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-robot text-white text-sm"></i>
+                    </div>
+                    <div class="message-bubble bg-white rounded-lg p-3 shadow-sm border">
+                        <div class="markdown-content">
+                            <p class="text-gray-800">👋 Hello <strong>{{ user_name }}</strong>! I'm your AI assistant for the Staff Management System.</p>
+                            <p class="text-gray-600 mt-2">I can help you with:</p>
+                            <ul class="text-gray-600 text-sm">
+                                <li>🔹 <strong>Task Management</strong>: Create, assign, and track tasks</li>
+                                <li>🔹 <strong>Attendance</strong>: Check attendance records and reports</li>
+                                <li>🔹 <strong>Employee Info</strong>: View employee details and team information</li>
+                                <li>🔹 <strong>General Queries</strong>: Answer questions about the system</li>
+                            </ul>
+                            <p class="text-gray-600 mt-2">Try asking: <em>"Assign a task to Ali to complete the project report"</em> or <em>"Show my attendance"</em></p>
+                        </div>
+                        <div class="text-xs text-gray-400 mt-2">
+                            <i class="fas fa-clock"></i> Just now
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Typing Indicator -->
+                <div id="typingIndicator" class="typing-indicator flex items-start space-x-3">
+                    <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-robot text-white text-sm"></i>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 shadow-sm border">
+                        <div class="typing-dots">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Input Area -->
+            <div class="bg-white border-t p-4">
+                <form id="chatForm" class="flex space-x-3">
+                    <div class="flex-1 relative">
+                        <input 
+                            type="text" 
+                            id="messageInput" 
+                            placeholder="Type your message here... (e.g., 'Assign a task to John to review the report')"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                            autocomplete="off"
+                        >
+                        <div class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                            <i class="fas fa-paper-plane"></i>
+                        </div>
+                    </div>
+                    <button 
+                        type="submit" 
+                        id="sendButton"
+                        class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 flex items-center space-x-2"
+                    >
+                        <i class="fas fa-paper-plane"></i>
+                        <span>Send</span>
+                    </button>
+                </form>
+                
+                <!-- Quick Actions -->
+                <div class="mt-3 flex flex-wrap gap-2">
+                    <button class="quick-action px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition-colors" 
+                            data-message="Show my tasks">
+                        📋 My Tasks
+                    </button>
+                    <button class="quick-action px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition-colors" 
+                            data-message="Show my attendance">
+                        📅 My Attendance
+                    </button>
+                    <button class="quick-action px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition-colors" 
+                            data-message="List all employees">
+                        👥 All Employees
+                    </button>
+                    <button class="quick-action px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition-colors" 
+                            data-message="Help">
+                        ❓ Help
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class ChatBot {
+            constructor() {
+                this.chatMessages = document.getElementById('chatMessages');
+                this.messageInput = document.getElementById('messageInput');
+                this.chatForm = document.getElementById('chatForm');
+                this.sendButton = document.getElementById('sendButton');
+                this.typingIndicator = document.getElementById('typingIndicator');
+                
+                this.initializeEventListeners();
+            }
+            
+            initializeEventListeners() {
+                // Form submission
+                this.chatForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.sendMessage();
+                });
+                
+                // Quick action buttons
+                document.querySelectorAll('.quick-action').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const message = button.getAttribute('data-message');
+                        this.messageInput.value = message;
+                        this.sendMessage();
+                    });
+                });
+                
+                // Enter key handling
+                this.messageInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendMessage();
+                    }
+                });
+            }
+            
+            async sendMessage() {
+                const message = this.messageInput.value.trim();
+                if (!message) return;
+                
+                // Add user message to chat
+                this.addMessage(message, 'user');
+                
+                // Clear input and disable send button
+                this.messageInput.value = '';
+                this.setSendingState(true);
+                
+                try {
+                    // Show typing indicator
+                    this.showTypingIndicator();
+                    
+                    // Send message to backend
+                    const response = await fetch('/chatbot/api/chat/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.getCSRFToken()
+                        },
+                        body: JSON.stringify({ message: message })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    // Hide typing indicator
+                    this.hideTypingIndicator();
+                    
+                    if (data.success) {
+                        this.addMessage(data.response, 'bot');
+                    } else {
+                        this.addMessage(data.response || 'Sorry, I encountered an error. Please try again.', 'bot', true);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error sending message:', error);
+                    this.hideTypingIndicator();
+                    this.addMessage('Sorry, I\'m having trouble connecting. Please check your internet connection and try again.', 'bot', true);
+                } finally {
+                    this.setSendingState(false);
+                }
+            }
+            
+            addMessage(text, sender, isError = false) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'flex items-start space-x-3';
+                
+                const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
+                if (sender === 'user') {
+                    messageDiv.innerHTML = `
+                        <div class="flex-1"></div>
+                        <div class="message-bubble bg-blue-600 text-white rounded-lg p-3 shadow-sm">
+                            <div class="markdown-content">${this.escapeHtml(text)}</div>
+                            <div class="text-xs text-blue-100 mt-2">
+                                <i class="fas fa-clock"></i> ${timestamp}
+                            </div>
+                        </div>
+                        <div class="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-user text-white text-sm"></i>
+                        </div>
+                    `;
+                } else {
+                    const bgColor = isError ? 'bg-red-50 border-red-200' : 'bg-white';
+                    const textColor = isError ? 'text-red-800' : 'text-gray-800';
+                    
+                    messageDiv.innerHTML = `
+                        <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-robot text-white text-sm"></i>
+                        </div>
+                        <div class="message-bubble ${bgColor} rounded-lg p-3 shadow-sm border">
+                            <div class="markdown-content ${textColor}">${this.formatMessage(text)}</div>
+                            <div class="text-xs text-gray-400 mt-2">
+                                <i class="fas fa-clock"></i> ${timestamp}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                this.chatMessages.appendChild(messageDiv);
+                this.scrollToBottom();
+            }
+            
+            formatMessage(text) {
+                // Basic markdown-like formatting
+                return text
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                    .replace(/\n/g, '<br>')
+                    .replace(/• /g, '• ');
+            }
+            
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+            
+            showTypingIndicator() {
+                this.typingIndicator.classList.add('show');
+                this.scrollToBottom();
+            }
+            
+            hideTypingIndicator() {
+                this.typingIndicator.classList.remove('show');
+            }
+            
+            setSendingState(isSending) {
+                this.sendButton.disabled = isSending;
+                this.messageInput.disabled = isSending;
+                
+                if (isSending) {
+                    this.sendButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Sending...</span>';
+                } else {
+                    this.sendButton.innerHTML = '<i class="fas fa-paper-plane"></i> <span>Send</span>';
+                }
+            }
+            
+            scrollToBottom() {
+                setTimeout(() => {
+                    this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+                }, 100);
+            }
+            
+            getCSRFToken() {
+                const cookies = document.cookie.split(';');
+                for (let cookie of cookies) {
+                    const [name, value] = cookie.trim().split('=');
+                    if (name === 'csrftoken') {
+                        return value;
+                    }
+                }
+                return '';
+            }
+        }
+        
+        // Initialize chatbot when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new ChatBot();
+        });
+    </script>
+</body>
+</html>

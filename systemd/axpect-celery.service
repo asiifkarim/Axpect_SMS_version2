@@ -1,0 +1,31 @@
+[Unit]
+Description=Axpect SMS Celery Worker
+After=network.target redis.service postgresql.service
+Wants=redis.service postgresql.service
+
+[Service]
+Type=exec
+User=axpect
+Group=axpect
+WorkingDirectory=/opt/axpect_sms
+Environment=DJANGO_SETTINGS_MODULE=axpect_tech_config.settings
+EnvironmentFile=/opt/axpect_sms/.env
+ExecStart=/opt/axpect_sms/venv/bin/celery -A axpect_tech_config worker -l info --concurrency=4
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=10
+PrivateTmp=true
+Restart=on-failure
+RestartSec=10
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/axpect_sms/media /opt/axpect_sms/logs /var/log/axpect_sms
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+[Install]
+WantedBy=multi-user.target

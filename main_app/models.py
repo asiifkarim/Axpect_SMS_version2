@@ -1368,3 +1368,269 @@ class SocialAuditLog(models.Model):
     
     def __str__(self):
         return f"{self.user.get_full_name()} - {self.get_action_display()}"
+
+
+# ============================================================================
+# ENHANCED AI AND BUSINESS MODELS (Merged from external repository)
+# ============================================================================
+
+class AIProcessingLog(models.Model):
+    """
+    Track AI processing operations for field reports and other AI tasks
+    """
+    STATUS_CHOICES = [
+        ('PROCESSING', 'Processing'),
+        ('COMPLETED', 'Completed'),
+        ('FAILED', 'Failed'),
+        ('PENDING', 'Pending'),
+    ]
+    
+    # Core fields
+    jobcard_action = models.ForeignKey('JobCardAction', on_delete=models.CASCADE, null=True, blank=True)
+    input_text = models.TextField()
+    processed_data = models.JSONField(null=True, blank=True)
+    
+    # Processing details
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    confidence_score = models.FloatField(default=0.0, validators=[MinValueValidator(0.0), MaxValueValidator(1.0)])
+    processing_method = models.CharField(max_length=50, default='llm')  # llm, regex, manual
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    error_message = models.TextField(blank=True)
+    
+    # User context
+    processed_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status', 'created_at']),
+            models.Index(fields=['jobcard_action', 'status']),
+        ]
+    
+    def __str__(self):
+        return f"AI Processing {self.id} - {self.status}"
+
+
+class BusinessCalendar(models.Model):
+    """
+    Business calendar for managing working days and holidays
+    """
+    date = models.DateField(unique=True)
+    is_working_day = models.BooleanField(default=True)
+    is_holiday = models.BooleanField(default=False)
+    holiday_name = models.CharField(max_length=200, blank=True)
+    notes = models.TextField(blank=True)
+    
+    # Regional settings
+    city = models.ForeignKey('City', on_delete=models.CASCADE, null=True, blank=True)
+    applies_to_all = models.BooleanField(default=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['date']
+        unique_together = ['date', 'city']
+    
+    def __str__(self):
+        return f"{self.date} - {'Holiday' if self.is_holiday else 'Working Day'}"
+
+
+class CityWeekdayPlan(models.Model):
+    """
+    Define working days for each city
+    """
+    WEEKDAY_CHOICES = [
+        (0, 'Monday'),
+        (1, 'Tuesday'),
+        (2, 'Wednesday'),
+        (3, 'Thursday'),
+        (4, 'Friday'),
+        (5, 'Saturday'),
+        (6, 'Sunday'),
+    ]
+    
+    city = models.ForeignKey('City', on_delete=models.CASCADE)
+    weekday = models.IntegerField(choices=WEEKDAY_CHOICES)
+    is_working_day = models.BooleanField(default=True)
+    start_time = models.TimeField(null=True, blank=True)
+    end_time = models.TimeField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ['city', 'weekday']
+        ordering = ['city', 'weekday']
+    
+    def __str__(self):
+        return f"{self.city.name} - {self.get_weekday_display()}"
+
+
+# Enhanced JobCardAction model to include structured JSON data
+# Note: This adds a field to the existing JobCardAction model
+# The migration will handle adding this field safely
+
+def add_structured_json_to_jobcard_action():
+    """
+    Function to add structured_json field to JobCardAction model
+    This will be handled in a migration
+    """
+    pass
+
+
+# ============================================================================
+# ENHANCED GPS AND LOCATION MODELS
+# ============================================================================
+
+class GPSGeofence(models.Model):
+    """
+    Define geographical boundaries for attendance and location tracking
+    """
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    
+    # Geofence coordinates (can be circle or polygon)
+    center_latitude = models.DecimalField(max_digits=10, decimal_places=8)
+    center_longitude = models.DecimalField(max_digits=11, decimal_places=8)
+    radius_meters = models.PositiveIntegerField(default=100)  # For circular geofences
+    
+    # Polygon coordinates (JSON format for complex shapes)
+    polygon_coordinates = models.JSONField(null=True, blank=True)
+    
+    # Associated entities
+    customer = models.ForeignKey('Customer', on_delete=models.CASCADE, null=True, blank=True)
+    city = models.ForeignKey('City', on_delete=models.CASCADE, null=True, blank=True)
+    
+    # Settings
+    is_active = models.BooleanField(default=True)
+    allow_attendance = models.BooleanField(default=True)
+    require_photo = models.BooleanField(default=False)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['name']
+    
+    def __str__(self):
+        return f"Geofence: {self.name}"
+
+
+class GPSLocationHistory(models.Model):
+    """
+    Track detailed GPS location history for employees
+    """
+    employee = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    
+    # Location data
+    latitude = models.DecimalField(max_digits=10, decimal_places=8)
+    longitude = models.DecimalField(max_digits=11, decimal_places=8)
+    accuracy = models.FloatField(null=True, blank=True)  # GPS accuracy in meters
+    altitude = models.FloatField(null=True, blank=True)
+    speed = models.FloatField(null=True, blank=True)  # Speed in m/s
+    
+    # Context
+    activity_type = models.CharField(max_length=50, blank=True)  # walking, driving, stationary
+    battery_level = models.IntegerField(null=True, blank=True)
+    network_type = models.CharField(max_length=20, blank=True)  # wifi, mobile, gps
+    
+    # Associated records
+    jobcard = models.ForeignKey('JobCard', on_delete=models.SET_NULL, null=True, blank=True)
+    geofence = models.ForeignKey(GPSGeofence, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # Metadata
+    recorded_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-recorded_at']
+        indexes = [
+            models.Index(fields=['employee', 'recorded_at']),
+            models.Index(fields=['jobcard', 'recorded_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.employee.get_full_name()} - {self.recorded_at}"
+
+
+class EmployeeGPSAttendance(models.Model):
+    """
+    Enhanced GPS-based attendance tracking
+    """
+    employee = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    
+    # Check-in data
+    checkin_time = models.DateTimeField()
+    checkin_latitude = models.DecimalField(max_digits=10, decimal_places=8)
+    checkin_longitude = models.DecimalField(max_digits=11, decimal_places=8)
+    checkin_accuracy = models.FloatField(null=True, blank=True)
+    checkin_photo = models.ImageField(upload_to='attendance_photos/', null=True, blank=True)
+    checkin_geofence = models.ForeignKey(GPSGeofence, on_delete=models.SET_NULL, null=True, blank=True, related_name='checkin_records')
+    
+    # Check-out data
+    checkout_time = models.DateTimeField(null=True, blank=True)
+    checkout_latitude = models.DecimalField(max_digits=10, decimal_places=8, null=True, blank=True)
+    checkout_longitude = models.DecimalField(max_digits=11, decimal_places=8, null=True, blank=True)
+    checkout_accuracy = models.FloatField(null=True, blank=True)
+    checkout_photo = models.ImageField(upload_to='attendance_photos/', null=True, blank=True)
+    checkout_geofence = models.ForeignKey(GPSGeofence, on_delete=models.SET_NULL, null=True, blank=True, related_name='checkout_records')
+    
+    # Calculated fields
+    total_hours = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    distance_traveled = models.FloatField(null=True, blank=True)  # Total distance in km
+    
+    # Validation
+    is_valid = models.BooleanField(default=True)
+    validation_notes = models.TextField(blank=True)
+    
+    # Metadata
+    date = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ['employee', 'date']
+        ordering = ['-date']
+    
+    def __str__(self):
+        return f"{self.employee.get_full_name()} - {self.date}"
+
+
+class EmployeeLocationSession(models.Model):
+    """
+    Track employee location sessions and movement patterns
+    """
+    employee = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    
+    # Session data
+    session_start = models.DateTimeField()
+    session_end = models.DateTimeField(null=True, blank=True)
+    
+    # Location summary
+    start_latitude = models.DecimalField(max_digits=10, decimal_places=8)
+    start_longitude = models.DecimalField(max_digits=11, decimal_places=8)
+    end_latitude = models.DecimalField(max_digits=10, decimal_places=8, null=True, blank=True)
+    end_longitude = models.DecimalField(max_digits=11, decimal_places=8, null=True, blank=True)
+    
+    # Session statistics
+    total_distance = models.FloatField(default=0.0)  # Total distance in km
+    max_speed = models.FloatField(null=True, blank=True)  # Max speed in km/h
+    avg_speed = models.FloatField(null=True, blank=True)  # Average speed in km/h
+    location_points_count = models.PositiveIntegerField(default=0)
+    
+    # Context
+    primary_activity = models.CharField(max_length=50, blank=True)
+    jobcards_visited = models.ManyToManyField('JobCard', blank=True)
+    customers_visited = models.ManyToManyField('Customer', blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-session_start']
+    
+    def __str__(self):
+        return f"{self.employee.get_full_name()} - Session {self.session_start.date()}"
