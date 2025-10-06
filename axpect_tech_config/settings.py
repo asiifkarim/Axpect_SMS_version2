@@ -78,11 +78,21 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost:60924',
     'http://127.0.0.1:62039',  # Browser preview proxy
     'http://localhost:62039',
+    'http://127.0.0.1:60377',  # Current browser preview proxy
+    'http://localhost:60377',
 ]
 
 # CSRF Cookie settings
 CSRF_COOKIE_HTTPONLY = False
 CSRF_USE_SESSIONS = False
+
+# Development-friendly CSRF settings
+if DEBUG:
+    CSRF_COOKIE_SECURE = False
+    CSRF_COOKIE_SAMESITE = 'Lax'
+    # Allow CSRF token to be sent via AJAX
+    CSRF_HEADER_NAME = 'HTTP_X_CSRFTOKEN'
+    CSRF_TOKEN_HEADER_NAME = 'HTTP_X_CSRFTOKEN'
 
 
 # Application definition
@@ -385,22 +395,36 @@ os.makedirs(os.path.join(BASE_DIR, 'logs'), exist_ok=True)
 # Performance & Caching
 # -----------------------------
 
-# Cache Configuration
-CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': os.environ.get('CACHE_REDIS_URL', 'redis://127.0.0.1:6379/2'),
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'CONNECTION_POOL_KWARGS': {
-                'max_connections': 50,
-                'retry_on_timeout': True,
-            },
-        },
-        'KEY_PREFIX': 'axpect_sms',
-        'TIMEOUT': 300,
+# Cache Configuration - Development friendly with Redis fallback
+if DEBUG:
+    # Use local memory cache for development when Redis is not available
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'axpect-sms-dev-cache',
+            'TIMEOUT': 300,
+            'OPTIONS': {
+                'MAX_ENTRIES': 1000,
+            }
+        }
     }
-}
+else:
+    # Use Redis for production
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': os.environ.get('CACHE_REDIS_URL', 'redis://127.0.0.1:6379/2'),
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'CONNECTION_POOL_KWARGS': {
+                    'max_connections': 50,
+                    'retry_on_timeout': True,
+                },
+            },
+            'KEY_PREFIX': 'axpect_sms',
+            'TIMEOUT': 300,
+        }
+    }
 
 # Session Configuration
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
@@ -415,8 +439,8 @@ CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = 'Lax'
 
-# ORM Caching with Cachalot
-CACHALOT_ENABLED = True
+# ORM Caching with Cachalot - Disabled for development
+CACHALOT_ENABLED = not DEBUG  # Only enable in production
 CACHALOT_CACHE = 'default'
 
 # Static Files Compression

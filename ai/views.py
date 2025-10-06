@@ -13,7 +13,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.utils import timezone
 
-from .llm_handler import get_llm_handler
+from .llm_handler import LLMHandler
 from .actions import execute_action
 
 logger = logging.getLogger(__name__)
@@ -75,7 +75,7 @@ def chatbot_response(request):
         }
         
         # Get LLM handler and process the message
-        llm_handler = get_llm_handler()
+        llm_handler = LLMHandler()
         ai_response, action_data = llm_handler.process_chat(user_message, user_context)
         
         response_data = {

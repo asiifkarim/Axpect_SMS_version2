@@ -1,0 +1,577 @@
+/**
+ * Enhanced Notification System for Axpect SMS
+ * Provides toast notifications, real-time updates, and popup alerts
+ */
+
+class NotificationManager {
+    constructor() {
+        this.container = null;
+        this.notifications = [];
+        this.init();
+    }
+
+    init() {
+        // Create notification container
+        
+        // Initialize real-time notifications if available
+        this.initRealTimeNotifications();
+        
+        // Check for pending notifications on page load
+        this.checkPendingNotifications();
+        
+        // Initialize notification bell dropdown
+        this.initNotificationBell();
+    }
+
+    createContainer() {
+        // Create toast container
+        this.container = document.createElement('div');
+        this.container.id = 'notification-container';
+        this.container.className = 'notification-container';
+        this.container.innerHTML = `
+            <style>
+                .notification-container {
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    z-index: 9999;
+                    max-width: 400px;
+                }
+                
+                .toast-notification {
+                    background: white;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    margin-bottom: 10px;
+                    padding: 16px;
+                    border-left: 4px solid #007bff;
+                    animation: slideInRight 0.3s ease-out;
+                    position: relative;
+                    overflow: hidden;
+                }
+                
+                .toast-notification.success {
+                    border-left-color: #28a745;
+                }
+                
+                .toast-notification.error {
+                    border-left-color: #dc3545;
+                }
+                
+                .toast-notification.warning {
+                    border-left-color: #ffc107;
+                }
+                
+                .toast-notification.info {
+                    border-left-color: #17a2b8;
+                }
+                
+                .toast-header {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    margin-bottom: 8px;
+                }
+                
+                .toast-title {
+                    font-weight: 600;
+                    color: #333;
+                    display: flex;
+                    align-items: center;
+                }
+                
+                .toast-title i {
+                    margin-right: 8px;
+                    font-size: 16px;
+                }
+                
+                .toast-close {
+                    background: none;
+                    border: none;
+                    font-size: 18px;
+                    cursor: pointer;
+                    color: #999;
+                    padding: 0;
+                    width: 20px;
+                    height: 20px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                
+                .toast-close:hover {
+                    color: #666;
+                }
+                
+                .toast-body {
+                    color: #666;
+                    line-height: 1.4;
+                }
+                
+                .toast-progress {
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    height: 3px;
+                    background: rgba(0,0,0,0.1);
+                    animation: progress 5s linear;
+                }
+                
+                .toast-notification.success .toast-progress {
+                    background: #28a745;
+                }
+                
+                .toast-notification.error .toast-progress {
+                    background: #dc3545;
+                }
+                
+                .toast-notification.warning .toast-progress {
+                    background: #ffc107;
+                }
+                
+                .toast-notification.info .toast-progress {
+                    background: #17a2b8;
+                }
+                
+                @keyframes slideInRight {
+                    from {
+                        transform: translateX(100%);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                }
+                
+                @keyframes slideOutRight {
+                    from {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                    to {
+                        transform: translateX(100%);
+                        opacity: 0;
+                    }
+                }
+                
+                @keyframes progress {
+                    from {
+                        width: 100%;
+                    }
+                    to {
+                        width: 0%;
+                    }
+                }
+                
+                /* Job Card Assignment Notification Styles */
+                .job-assignment-notification {
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    border-left: none;
+                }
+                
+                .job-assignment-notification .toast-title,
+                .job-assignment-notification .toast-body {
+                    color: white;
+                }
+                
+                .job-assignment-notification .toast-close {
+                    color: rgba(255,255,255,0.8);
+                }
+                
+                .job-assignment-notification .toast-close:hover {
+                    color: white;
+                }
+            </style>
+        `;
+        document.body.appendChild(this.container);
+    }
+
+    show(message, type = 'info', title = null, duration = 5000, options = {}) {
+        const icons = {
+            success: 'fas fa-check-circle',
+            error: 'fas fa-exclamation-circle',
+            warning: 'fas fa-exclamation-triangle',
+            info: 'fas fa-info-circle',
+            job_assignment: 'fas fa-tasks'
+        };
+
+        const titles = {
+            success: title || 'Success',
+            error: title || 'Error',
+            warning: title || 'Warning',
+            info: title || 'Information',
+            job_assignment: title || 'Job Assignment'
+        };
+
+        const toast = document.createElement('div');
+        toast.className = `toast-notification ${type} ${options.className || ''}`;
+        
+        const toastId = 'toast_' + Date.now();
+        toast.id = toastId;
+
+        toast.innerHTML = `
+            <div class="toast-header">
+                <div class="toast-title">
+                    <i class="${icons[type] || icons.info}"></i>
+                    ${titles[type]}
+                </div>
+                <button class="toast-close" onclick="notificationManager.hide('${toastId}')">&times;</button>
+            </div>
+            <div class="toast-body">${message}</div>
+            ${duration > 0 ? '<div class="toast-progress"></div>' : ''}
+        `;
+
+        this.container.appendChild(toast);
+        this.notifications.push({ id: toastId, element: toast });
+
+        // Auto-hide after duration
+        if (duration > 0) {
+            setTimeout(() => {
+                this.hide(toastId);
+            }, duration);
+        }
+
+        // Add click handlers for actions if provided
+        if (options.actions) {
+            this.addActionButtons(toast, options.actions);
+        }
+
+        return toastId;
+    }
+
+    hide(toastId) {
+        const notification = this.notifications.find(n => n.id === toastId);
+        if (notification) {
+            notification.element.style.animation = 'slideOutRight 0.3s ease-in';
+            setTimeout(() => {
+                if (notification.element.parentNode) {
+                    notification.element.parentNode.removeChild(notification.element);
+                }
+                this.notifications = this.notifications.filter(n => n.id !== toastId);
+            }, 300);
+        }
+    }
+
+    addActionButtons(toast, actions) {
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'toast-actions';
+        actionsDiv.style.cssText = 'margin-top: 10px; display: flex; gap: 8px;';
+
+        actions.forEach(action => {
+            const button = document.createElement('button');
+            button.textContent = action.text;
+            button.className = `btn btn-sm ${action.className || 'btn-primary'}`;
+            button.onclick = action.handler;
+            actionsDiv.appendChild(button);
+        });
+
+        toast.querySelector('.toast-body').appendChild(actionsDiv);
+    }
+
+    // Job Card Assignment specific notifications
+    showJobAssignment(jobCard, assignedTo) {
+        const message = `
+            <strong>Job Card #${jobCard.number}</strong> has been assigned to <strong>${assignedTo}</strong>
+            <br><small>Priority: ${jobCard.priority} | Due: ${jobCard.due_date || 'Not set'}</small>
+        `;
+
+        return this.show(message, 'job_assignment', 'New Job Assignment', 7000, {
+            className: 'job-assignment-notification',
+            actions: [
+                {
+                    text: 'View Details',
+                    className: 'btn-light btn-sm',
+                    handler: () => {
+                        window.location.href = `/jobcard/${jobCard.id}/`;
+                    }
+                }
+            ]
+        });
+    }
+
+    // Real-time notification methods
+    initRealTimeNotifications() {
+        // Check if WebSocket or Server-Sent Events are available
+        if (typeof WebSocket !== 'undefined') {
+            this.initWebSocketNotifications();
+        } else {
+            // Fallback to polling
+            this.initPollingNotifications();
+        }
+    }
+
+    initWebSocketNotifications() {
+        // WebSocket implementation for real-time notifications
+        // This would connect to Django Channels if available
+        try {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/notifications/`;
+            
+            this.websocket = new WebSocket(wsUrl);
+            
+            this.websocket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                this.handleRealTimeNotification(data);
+            };
+            
+            this.websocket.onerror = () => {
+                console.log('WebSocket connection failed, falling back to polling');
+                this.initPollingNotifications();
+            };
+        } catch (error) {
+            console.log('WebSocket not available, using polling');
+            this.initPollingNotifications();
+        }
+    }
+
+    initPollingNotifications() {
+        // Poll for new notifications every 30 seconds
+        setInterval(() => {
+            this.checkPendingNotifications();
+        }, 30000);
+    }
+
+    checkPendingNotifications() {
+        // Check for pending notifications via AJAX
+        fetch('/api/notifications/pending/', {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': this.getCSRFToken(),
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.notifications) {
+                data.notifications.forEach(notification => {
+                    this.handleRealTimeNotification(notification);
+                });
+            }
+        })
+        .catch(error => {
+            console.log('Error checking notifications:', error);
+        });
+    }
+
+    handleRealTimeNotification(data) {
+        switch (data.type) {
+            case 'job_assignment':
+                this.showJobAssignment(data.job_card, data.assigned_to);
+                break;
+            case 'job_status_update':
+                this.show(
+                    `Job Card #${data.job_card.number} status updated to: ${data.new_status}`,
+                    'info',
+                    'Job Status Update'
+                );
+                break;
+            case 'new_message':
+                this.show(data.message, 'info', 'New Message');
+                break;
+            default:
+                this.show(data.message, data.level || 'info', data.title);
+        }
+    }
+
+    getCSRFToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+               document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    }
+
+    // Utility methods for common notifications
+    success(message, title = null) {
+        return this.show(message, 'success', title);
+    }
+
+    error(message, title = null) {
+        return this.show(message, 'error', title);
+    }
+
+    warning(message, title = null) {
+        return this.show(message, 'warning', title);
+    }
+
+    info(message, title = null) {
+        return this.show(message, 'info', title);
+    }
+
+    // Clear all notifications
+    clearAll() {
+        this.notifications.forEach(notification => {
+            this.hide(notification.id);
+        });
+    }
+
+    // Initialize notification bell dropdown
+    initNotificationBell() {
+        const bell = document.getElementById('notification-bell');
+        const dropdown = document.getElementById('notification-dropdown');
+        const viewAllLink = document.getElementById('view-all-notifications');
+        
+        if (!bell || !dropdown) return;
+        
+        // Set up view all notifications link based on user type
+        if (viewAllLink) {
+            const userType = document.body.dataset.userType || '3'; // Default to employee
+            let notificationUrl = '#';
+            
+            if (userType === '1') {
+                notificationUrl = '/admin/notifications/'; // Admin notifications
+            } else if (userType === '2') {
+                notificationUrl = '/manager/view/notification/';
+            } else {
+                notificationUrl = '/employee/view/notification/';
+            }
+            
+            viewAllLink.href = notificationUrl;
+        }
+        
+        // Load notifications when bell is clicked
+        bell.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.loadNotificationDropdown();
+        });
+        
+        // Initial load
+        this.loadNotificationDropdown();
+        
+        // Auto-refresh every 30 seconds
+        setInterval(() => {
+            this.loadNotificationDropdown();
+        }, 30000);
+    }
+
+    // Load notifications for the dropdown
+    loadNotificationDropdown() {
+        fetch('/api/notifications/pending/', {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': this.getCSRFToken(),
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                this.updateNotificationBell(data.notifications);
+            }
+        })
+        .catch(error => {
+            console.log('Error loading notifications:', error);
+        });
+    }
+
+    // Update notification bell and dropdown
+    updateNotificationBell(notifications) {
+        const count = notifications.length;
+        const countBadge = document.getElementById('notification-count');
+        const header = document.getElementById('notification-header');
+        const list = document.getElementById('notification-list');
+        
+        // Update count badge
+        if (countBadge) {
+            if (count > 0) {
+                countBadge.textContent = count > 99 ? '99+' : count;
+                countBadge.style.display = 'inline-block';
+            } else {
+                countBadge.style.display = 'none';
+            }
+        }
+        
+        // Update header
+        if (header) {
+            header.textContent = count === 1 ? '1 Notification' : `${count} Notifications`;
+        }
+        
+        // Update notification list
+        if (list) {
+            if (count === 0) {
+                list.innerHTML = `
+                    <a href="#" class="dropdown-item text-center text-muted">
+                        <i class="fas fa-bell-slash mr-2"></i>No new notifications
+                    </a>
+                `;
+            } else {
+                list.innerHTML = notifications.slice(0, 5).map(notification => {
+                    const icon = this.getNotificationIcon(notification.type);
+                    const timeAgo = this.timeAgo(new Date(notification.created_at));
+                    
+                    return `
+                        <a href="#" class="dropdown-item notification-item" data-notification-id="${notification.id}">
+                            <i class="${icon} mr-2"></i>
+                            <span class="notification-text">${notification.message}</span>
+                            <span class="float-right text-muted text-sm">${timeAgo}</span>
+                        </a>
+                    `;
+                }).join('<div class="dropdown-divider"></div>');
+            }
+        }
+        
+        // Add click handlers for notification items
+        document.querySelectorAll('.notification-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const notificationId = item.dataset.notificationId;
+                this.handleNotificationClick(notificationId);
+            });
+        });
+    }
+
+    // Get icon for notification type
+    getNotificationIcon(type) {
+        const icons = {
+            'job_assignment': 'fas fa-tasks text-primary',
+            'status_update': 'fas fa-info-circle text-info',
+            'general': 'fas fa-bell text-warning',
+            'success': 'fas fa-check-circle text-success',
+            'error': 'fas fa-exclamation-circle text-danger',
+            'warning': 'fas fa-exclamation-triangle text-warning'
+        };
+        return icons[type] || 'fas fa-bell text-info';
+    }
+
+    // Handle notification click
+    handleNotificationClick(notificationId) {
+        // Mark as read and handle navigation
+        console.log('Notification clicked:', notificationId);
+        
+        // You can add logic here to:
+        // 1. Mark notification as read
+        // 2. Navigate to relevant page
+        // 3. Show detailed notification
+    }
+
+    // Time ago helper function
+    timeAgo(date) {
+        const now = new Date();
+        const diffInSeconds = Math.floor((now - date) / 1000);
+        
+        if (diffInSeconds < 60) return 'Just now';
+        if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+        if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+        return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    }
+}
+
+// Initialize notification manager when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    window.notificationManager = new NotificationManager();
+    
+    // Show any Django messages as notifications
+    const djangoMessages = document.querySelectorAll('.django-messages .alert');
+    djangoMessages.forEach(alert => {
+        const type = alert.classList.contains('alert-success') ? 'success' :
+                    alert.classList.contains('alert-danger') ? 'error' :
+                    alert.classList.contains('alert-warning') ? 'warning' : 'info';
+        
+        notificationManager.show(alert.textContent.trim(), type);
+        alert.style.display = 'none'; // Hide the original Django message
+    });
+});
+
+// Export for use in other scripts
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = NotificationManager;
+}

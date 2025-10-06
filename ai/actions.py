@@ -630,8 +630,7 @@ def analyze_job_performance(user, message_data):
     Analyze job performance using AI - Enhanced functionality from external repo
     """
     try:
-        # Import the field processor
-{{ ... }}
+        from services.ai_field_processor import AIFieldProcessor
         
         message = message_data.get('message', '').lower()
         
