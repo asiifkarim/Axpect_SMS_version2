@@ -1,5 +1,6 @@
 import json
 import requests
+from datetime import datetime
 from django.contrib import messages
 from django.core.files.storage import FileSystemStorage
 from django.http import HttpResponse, JsonResponse
@@ -891,5 +892,717 @@ def admin_customer_toggle_status(request, customer_id):
         })
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+def communication_dashboard(request):
+    """
+    Communication log timeline dashboard for viewing customer interactions
+    """
+    if request.user.user_type != '1':
+        messages.error(request, "Access denied. Only administrators can view this page.")
+        return redirect('login_page')
+    
+    # Get filter parameters
+    customer_id = request.GET.get('customer_id')
+    employee_id = request.GET.get('employee_id')
+    channel = request.GET.get('channel')
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    
+    # Base queryset
+    communications = CommunicationLog.objects.all().order_by('-timestamp')
+    
+    # Apply filters
+    if customer_id:
+        communications = communications.filter(customer_id=customer_id)
+    if employee_id:
+        communications = communications.filter(user_id=employee_id)
+    if channel:
+        communications = communications.filter(channel=channel)
+    if date_from:
+        communications = communications.filter(timestamp__date__gte=date_from)
+    if date_to:
+        communications = communications.filter(timestamp__date__lte=date_to)
+    
+    # Get filter options
+    customers = Customer.objects.all().order_by('name')
+    employees = CustomUser.objects.filter(user_type__in=['2', '3']).order_by('first_name')
+    channels = CommunicationLog.objects.values_list('channel', flat=True).distinct()
+    
+    # Pagination
+    from django.core.paginator import Paginator
+    paginator = Paginator(communications, 50)  # 50 items per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'communications': page_obj,
+        'customers': customers,
+        'employees': employees,
+        'channels': channels,
+        'filters': {
+            'customer_id': customer_id,
+            'employee_id': employee_id,
+            'channel': channel,
+            'date_from': date_from,
+            'date_to': date_to,
+        }
+    }
+    
+    return render(request, 'ceo_template/communication_dashboard.html', context)
+
+
+def business_calendar(request):
+    """
+    Business calendar management for holidays and working days
+    """
+    if request.user.user_type != '1':
+        messages.error(request, "Access denied. Only administrators can view this page.")
+        return redirect('login_page')
+    
+    # Get filter parameters
+    year = request.GET.get('year', timezone.now().year)
+    month = request.GET.get('month', timezone.now().month)
+    city_id = request.GET.get('city_id')
+    
+    try:
+        year = int(year)
+        month = int(month)
+    except (ValueError, TypeError):
+        year = timezone.now().year
+        month = timezone.now().month
+    
+    # Get calendar entries for the month
+    start_date = datetime(year, month, 1).date()
+    if month == 12:
+        end_date = datetime(year + 1, 1, 1).date()
+    else:
+        end_date = datetime(year, month + 1, 1).date()
+    
+    calendar_entries = BusinessCalendar.objects.filter(
+        date__gte=start_date,
+        date__lt=end_date
+    )
+    
+    if city_id:
+        calendar_entries = calendar_entries.filter(
+            Q(city_id=city_id) | Q(applies_to_all=True)
+        )
+    
+    # Get cities for filter
+    cities = City.objects.all().order_by('name')
+    
+    # Create calendar grid
+    import calendar
+    cal = calendar.monthcalendar(year, month)
+    
+    # Prepare calendar data
+    calendar_data = []
+    for week in cal:
+        week_data = []
+        for day in week:
+            if day == 0:
+                week_data.append(None)
+            else:
+                day_date = datetime(year, month, day).date()
+                day_entries = calendar_entries.filter(date=day_date)
+                
+                day_info = {
+                    'day': day,
+                    'date': day_date,
+                    'is_working_day': True,
+                    'is_holiday': False,
+                    'holiday_name': '',
+                    'entries': list(day_entries)
+                }
+                
+                if day_entries.exists():
+                    entry = day_entries.first()
+                    day_info['is_working_day'] = entry.is_working_day
+                    day_info['is_holiday'] = entry.is_holiday
+                    day_info['holiday_name'] = entry.holiday_name
+                
+                week_data.append(day_info)
+        calendar_data.append(week_data)
+    
+    context = {
+        'calendar_data': calendar_data,
+        'year': year,
+        'month': month,
+        'month_name': calendar.month_name[month],
+        'cities': cities,
+        'selected_city_id': city_id,
+        'prev_month': month - 1 if month > 1 else 12,
+        'prev_year': year if month > 1 else year - 1,
+        'next_month': month + 1 if month < 12 else 1,
+        'next_year': year if month < 12 else year + 1,
+    }
+    
+    return render(request, 'ceo_template/business_calendar.html', context)
+
+
+def add_holiday(request):
+    """
+    Add a new holiday to the business calendar
+    """
+    if request.user.user_type != '1':
+        messages.error(request, "Access denied. Only administrators can perform this action.")
+        return redirect('login_page')
+    
+    if request.method == 'POST':
+        date_str = request.POST.get('date')
+        holiday_name = request.POST.get('holiday_name')
+        city_id = request.POST.get('city_id')
+        applies_to_all = request.POST.get('applies_to_all') == 'on'
+        notes = request.POST.get('notes', '')
+        
+        try:
+            holiday_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            
+            # Create or update calendar entry
+            calendar_entry, created = BusinessCalendar.objects.get_or_create(
+                date=holiday_date,
+                defaults={
+                    'is_working_day': False,
+                    'is_holiday': True,
+                    'holiday_name': holiday_name,
+                    'notes': notes,
+                    'applies_to_all': applies_to_all,
+                    'city_id': city_id if not applies_to_all else None
+                }
+            )
+            
+            if not created:
+                calendar_entry.is_working_day = False
+                calendar_entry.is_holiday = True
+                calendar_entry.holiday_name = holiday_name
+                calendar_entry.notes = notes
+                calendar_entry.applies_to_all = applies_to_all
+                calendar_entry.city_id = city_id if not applies_to_all else None
+                calendar_entry.save()
+            
+            messages.success(request, f'Holiday "{holiday_name}" added successfully!')
+            
+        except ValueError:
+            messages.error(request, 'Invalid date format.')
+        except Exception as e:
+            messages.error(request, f'Error adding holiday: {str(e)}')
+    
+    return redirect('business_calendar')
+
+
+def edit_holiday(request, entry_id):
+    """
+    Edit an existing calendar entry
+    """
+    if request.user.user_type != '1':
+        messages.error(request, "Access denied. Only administrators can perform this action.")
+        return redirect('login_page')
+    
+    try:
+        entry = BusinessCalendar.objects.get(id=entry_id)
+    except BusinessCalendar.DoesNotExist:
+        messages.error(request, 'Calendar entry not found.')
+        return redirect('business_calendar')
+    
+    if request.method == 'POST':
+        entry.is_working_day = request.POST.get('is_working_day') == 'on'
+        entry.is_holiday = request.POST.get('is_holiday') == 'on'
+        entry.holiday_name = request.POST.get('holiday_name', '')
+        entry.notes = request.POST.get('notes', '')
+        entry.applies_to_all = request.POST.get('applies_to_all') == 'on'
+        
+        city_id = request.POST.get('city_id')
+        entry.city_id = city_id if not entry.applies_to_all else None
+        
+        entry.save()
+        messages.success(request, 'Calendar entry updated successfully!')
+        return redirect('business_calendar')
+    
+    cities = City.objects.all().order_by('name')
+    context = {
+        'entry': entry,
+        'cities': cities
+    }
+    
+    return render(request, 'ceo_template/edit_holiday.html', context)
+
+
+def delete_holiday(request, entry_id):
+    """
+    Delete a calendar entry
+    """
+    if request.user.user_type != '1':
+        messages.error(request, "Access denied. Only administrators can perform this action.")
+        return redirect('login_page')
+    
+    try:
+        entry = BusinessCalendar.objects.get(id=entry_id)
+        entry.delete()
+        messages.success(request, 'Calendar entry deleted successfully!')
+    except BusinessCalendar.DoesNotExist:
+        messages.error(request, 'Calendar entry not found.')
+    
+    return redirect('business_calendar')
+
+
+def price_list_manage(request):
+    """
+    Price list management interface for admins
+    """
+    if request.user.user_type != '1':
+        messages.error(request, "Access denied. Only administrators can view this page.")
+        return redirect('login_page')
+    
+    # Get filter parameters
+    item_id = request.GET.get('item_id')
+    city_id = request.GET.get('city_id')
+    is_active = request.GET.get('is_active')
+    
+    # Base queryset
+    price_lists = PriceList.objects.all().order_by('-effective_date')
+    
+    # Apply filters
+    if item_id:
+        price_lists = price_lists.filter(item_id=item_id)
+    if city_id:
+        price_lists = price_lists.filter(city_id=city_id)
+    if is_active is not None:
+        price_lists = price_lists.filter(is_active=is_active == 'true')
+    
+    # Get filter options
+    items = Item.objects.all().order_by('name')
+    cities = City.objects.all().order_by('name')
+    
+    # Pagination
+    from django.core.paginator import Paginator
+    paginator = Paginator(price_lists, 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'price_lists': page_obj,
+        'items': items,
+        'cities': cities,
+        'filters': {
+            'item_id': item_id,
+            'city_id': city_id,
+            'is_active': is_active,
+        }
+    }
+    
+    return render(request, 'ceo_template/price_list_manage.html', context)
+
+
+def add_price_list(request):
+    """
+    Add a new price list entry
+    """
+    if request.user.user_type != '1':
+        messages.error(request, "Access denied. Only administrators can perform this action.")
+        return redirect('login_page')
+    
+    if request.method == 'POST':
+        item_id = request.POST.get('item_id')
+        city_id = request.POST.get('city_id')
+        rate = request.POST.get('rate')
+        effective_from = request.POST.get('effective_from')
+        effective_to = request.POST.get('effective_to')
+        is_active = request.POST.get('is_active') == 'on'
+        
+        try:
+            rate_decimal = float(rate)
+            effective_from_date = datetime.strptime(effective_from, '%Y-%m-%d').date()
+            effective_to_date = datetime.strptime(effective_to, '%Y-%m-%d').date() if effective_to else None
+            
+            price_list = PriceList.objects.create(
+                item_id=item_id,
+                city_id=city_id,
+                rate=rate_decimal,
+                effective_from=effective_from_date,
+                effective_to=effective_to_date,
+                is_active=is_active
+            )
+            
+            messages.success(request, f'Price list entry added successfully!')
+            
+        except ValueError as e:
+            messages.error(request, f'Invalid data format: {str(e)}')
+        except Exception as e:
+            messages.error(request, f'Error adding price list: {str(e)}')
+    
+    return redirect('price_list_manage')
+
+
+def edit_price_list(request, price_list_id):
+    """
+    Edit an existing price list entry
+    """
+    if request.user.user_type != '1':
+        messages.error(request, "Access denied. Only administrators can perform this action.")
+        return redirect('login_page')
+    
+    try:
+        price_list = PriceList.objects.get(id=price_list_id)
+    except PriceList.DoesNotExist:
+        messages.error(request, 'Price list entry not found.')
+        return redirect('price_list_manage')
+    
+    if request.method == 'POST':
+        price_list.item_id = request.POST.get('item_id')
+        price_list.city_id = request.POST.get('city_id')
+        price_list.rate = float(request.POST.get('rate'))
+        price_list.effective_from = datetime.strptime(request.POST.get('effective_from'), '%Y-%m-%d').date()
+        
+        effective_to = request.POST.get('effective_to')
+        price_list.effective_to = datetime.strptime(effective_to, '%Y-%m-%d').date() if effective_to else None
+        
+        price_list.is_active = request.POST.get('is_active') == 'on'
+        price_list.save()
+        
+        messages.success(request, 'Price list entry updated successfully!')
+        return redirect('price_list_manage')
+    
+    items = Item.objects.all().order_by('name')
+    cities = City.objects.all().order_by('name')
+    
+    context = {
+        'price_list': price_list,
+        'items': items,
+        'cities': cities
+    }
+    
+    return render(request, 'ceo_template/edit_price_list.html', context)
+
+
+def delete_price_list(request, price_list_id):
+    """
+    Delete a price list entry
+    """
+    if request.user.user_type != '1':
+        messages.error(request, "Access denied. Only administrators can perform this action.")
+        return redirect('login_page')
+    
+    try:
+        price_list = PriceList.objects.get(id=price_list_id)
+        price_list.delete()
+        messages.success(request, 'Price list entry deleted successfully!')
+    except PriceList.DoesNotExist:
+        messages.error(request, 'Price list entry not found.')
+    
+    return redirect('price_list_manage')
+
+
+def rate_alerts(request):
+    """
+    Rate alert configuration interface
+    """
+    if request.user.user_type != '1':
+        messages.error(request, "Access denied. Only administrators can view this page.")
+        return redirect('login_page')
+    
+    # Get filter parameters
+    item_id = request.GET.get('item_id')
+    city_id = request.GET.get('city_id')
+    is_active = request.GET.get('is_active')
+    
+    # Base queryset
+    rate_alerts = RateAlert.objects.all().order_by('-effective_at')
+    
+    # Apply filters
+    if item_id:
+        rate_alerts = rate_alerts.filter(item_id=item_id)
+    if city_id:
+        rate_alerts = rate_alerts.filter(city_id=city_id)
+    if is_active is not None:
+        rate_alerts = rate_alerts.filter(is_active=is_active == 'true')
+    
+    # Get filter options
+    items = Item.objects.all().order_by('name')
+    cities = City.objects.all().order_by('name')
+    
+    # Pagination
+    from django.core.paginator import Paginator
+    paginator = Paginator(rate_alerts, 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'rate_alerts': page_obj,
+        'items': items,
+        'cities': cities,
+        'filters': {
+            'item_id': item_id,
+            'city_id': city_id,
+            'is_active': is_active,
+        }
+    }
+    
+    return render(request, 'ceo_template/rate_alerts.html', context)
+
+
+def create_rate_alert(request):
+    """
+    Create a new rate alert
+    """
+    if request.user.user_type != '1':
+        messages.error(request, "Access denied. Only administrators can perform this action.")
+        return redirect('login_page')
+    
+    if request.method == 'POST':
+        item_id = request.POST.get('item_id')
+        city_id = request.POST.get('city_id')
+        threshold_percentage = request.POST.get('threshold_percentage')
+        direction = request.POST.get('direction')
+        is_active = request.POST.get('is_active') == 'on'
+        
+        try:
+            threshold_decimal = float(threshold_percentage)
+            
+            rate_alert = RateAlert.objects.create(
+                item_id=item_id,
+                city_id=city_id,
+                threshold_percentage=threshold_decimal,
+                direction=direction,
+                is_active=is_active
+            )
+            
+            messages.success(request, f'Rate alert created successfully!')
+            
+        except ValueError as e:
+            messages.error(request, f'Invalid data format: {str(e)}')
+        except Exception as e:
+            messages.error(request, f'Error creating rate alert: {str(e)}')
+    
+    return redirect('rate_alerts')
+
+
+def edit_rate_alert(request, alert_id):
+    """
+    Edit an existing rate alert
+    """
+    if request.user.user_type != '1':
+        messages.error(request, "Access denied. Only administrators can perform this action.")
+        return redirect('login_page')
+    
+    try:
+        rate_alert = RateAlert.objects.get(id=alert_id)
+    except RateAlert.DoesNotExist:
+        messages.error(request, 'Rate alert not found.')
+        return redirect('rate_alerts')
+    
+    if request.method == 'POST':
+        rate_alert.item_id = request.POST.get('item_id')
+        rate_alert.city_id = request.POST.get('city_id')
+        rate_alert.threshold_percentage = float(request.POST.get('threshold_percentage'))
+        rate_alert.direction = request.POST.get('direction')
+        rate_alert.is_active = request.POST.get('is_active') == 'on'
+        rate_alert.save()
+        
+        messages.success(request, 'Rate alert updated successfully!')
+        return redirect('rate_alerts')
+    
+    items = Item.objects.all().order_by('name')
+    cities = City.objects.all().order_by('name')
+    
+    context = {
+        'rate_alert': rate_alert,
+        'items': items,
+        'cities': cities
+    }
+    
+    return render(request, 'ceo_template/edit_rate_alert.html', context)
+
+
+def delete_rate_alert(request, alert_id):
+    """
+    Delete a rate alert
+    """
+    if request.user.user_type != '1':
+        messages.error(request, "Access denied. Only administrators can perform this action.")
+        return redirect('login_page')
+    
+    try:
+        rate_alert = RateAlert.objects.get(id=alert_id)
+        rate_alert.delete()
+        messages.success(request, 'Rate alert deleted successfully!')
+    except RateAlert.DoesNotExist:
+        messages.error(request, 'Rate alert not found.')
+    
+    return redirect('rate_alerts')
+
+
+def staff_capabilities_matrix(request):
+    """
+    Staff capability matrix management interface
+    """
+    if request.user.user_type != '1':
+        messages.error(request, "Access denied. Only administrators can view this page.")
+        return redirect('login_page')
+    
+    # Get all employees and capabilities
+    employees = Employee.objects.select_related('admin', 'department').all().order_by('admin__first_name')
+    staff_capabilities = StaffCapability.objects.select_related('staff__admin').all()
+    
+    # Get unique capabilities
+    capabilities = StaffCapability.objects.values_list('capability_type', flat=True).distinct().order_by('capability_type')
+    
+    # Create capability matrix
+    capability_matrix = {}
+    for employee in employees:
+        capability_matrix[employee.id] = {
+            'employee': employee,
+            'capabilities': {}
+        }
+        for capability in capabilities:
+            capability_matrix[employee.id]['capabilities'][capability] = None
+    
+    # Fill in existing capabilities
+    for staff_cap in staff_capabilities:
+        if staff_cap.staff.id in capability_matrix:
+            capability_matrix[staff_cap.staff.id]['capabilities'][staff_cap.capability_type] = staff_cap
+    
+    context = {
+        'capability_matrix': capability_matrix,
+        'capabilities': capabilities,
+        'employees': employees
+    }
+    
+    return render(request, 'ceo_template/capabilities_matrix.html', context)
+
+
+def update_capabilities(request):
+    """
+    Update staff capabilities
+    """
+    if request.user.user_type != '1':
+        messages.error(request, "Access denied. Only administrators can perform this action.")
+        return redirect('login_page')
+    
+    if request.method == 'POST':
+        employee_id = request.POST.get('employee_id')
+        capability = request.POST.get('capability')
+        level = request.POST.get('level')
+        notes = request.POST.get('notes', '')
+        
+        try:
+            employee = Employee.objects.get(id=employee_id)
+            
+            if level and level != '0':  # Level 0 means remove capability
+                # Create or update capability
+                staff_cap, created = StaffCapability.objects.get_or_create(
+                    employee=employee,
+                    capability=capability,
+                    defaults={'level': int(level), 'notes': notes}
+                )
+                
+                if not created:
+                    staff_cap.level = int(level)
+                    staff_cap.notes = notes
+                    staff_cap.save()
+                
+                messages.success(request, f'Capability updated for {employee.admin.get_full_name()}')
+            else:
+                # Remove capability
+                StaffCapability.objects.filter(
+                    employee=employee,
+                    capability=capability
+                ).delete()
+                
+                messages.success(request, f'Capability removed from {employee.admin.get_full_name()}')
+                
+        except Employee.DoesNotExist:
+            messages.error(request, 'Employee not found.')
+        except Exception as e:
+            messages.error(request, f'Error updating capability: {str(e)}')
+    
+    return redirect('staff_capabilities_matrix')
+
+
+def customer_capabilities_matrix(request):
+    """
+    Customer capability matrix management interface
+    """
+    if request.user.user_type != '1':
+        messages.error(request, "Access denied. Only administrators can view this page.")
+        return redirect('login_page')
+    
+    # Get all customers and capabilities
+    customers = Customer.objects.all().order_by('name')
+    customer_capabilities = CustomerCapability.objects.select_related('customer').all()
+    
+    # Get unique capabilities
+    capabilities = CustomerCapability.objects.values_list('item__name', flat=True).distinct().order_by('item__name')
+    
+    # Create capability matrix
+    capability_matrix = {}
+    for customer in customers:
+        capability_matrix[customer.id] = {
+            'customer': customer,
+            'capabilities': {}
+        }
+        for capability in capabilities:
+            capability_matrix[customer.id]['capabilities'][capability] = None
+    
+    # Fill in existing capabilities
+    for customer_cap in customer_capabilities:
+        if customer_cap.customer.id in capability_matrix:
+            capability_matrix[customer_cap.customer.id]['capabilities'][customer_cap.item.name] = customer_cap
+    
+    context = {
+        'capability_matrix': capability_matrix,
+        'capabilities': capabilities,
+        'customers': customers
+    }
+    
+    return render(request, 'ceo_template/customer_capabilities_matrix.html', context)
+
+
+def update_customer_capabilities(request):
+    """
+    Update customer capabilities
+    """
+    if request.user.user_type != '1':
+        messages.error(request, "Access denied. Only administrators can perform this action.")
+        return redirect('login_page')
+    
+    if request.method == 'POST':
+        customer_id = request.POST.get('customer_id')
+        capability = request.POST.get('capability')
+        level = request.POST.get('level')
+        notes = request.POST.get('notes', '')
+        
+        try:
+            customer = Customer.objects.get(id=customer_id)
+            
+            if level and level != '0':  # Level 0 means remove capability
+                # Create or update capability
+                customer_cap, created = CustomerCapability.objects.get_or_create(
+                    customer=customer,
+                    capability=capability,
+                    defaults={'level': int(level), 'notes': notes}
+                )
+                
+                if not created:
+                    customer_cap.level = int(level)
+                    customer_cap.notes = notes
+                    customer_cap.save()
+                
+                messages.success(request, f'Capability updated for {customer.name}')
+            else:
+                # Remove capability
+                CustomerCapability.objects.filter(
+                    customer=customer,
+                    capability=capability
+                ).delete()
+                
+                messages.success(request, f'Capability removed from {customer.name}')
+                
+        except Customer.DoesNotExist:
+            messages.error(request, 'Customer not found.')
+        except Exception as e:
+            messages.error(request, f'Error updating capability: {str(e)}')
+    
+    return redirect('customer_capabilities_matrix')
 
 

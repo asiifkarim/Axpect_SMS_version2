@@ -51,7 +51,7 @@ admin.site.register(WorkLocation)
 admin.site.register(UserStatus)
 
 # Attendance and performance tracking models
-admin.site.register(EmployeeGPSAttendance)
+admin.site.register(GPSCheckIn)
 admin.site.register(StaffScoresDaily)
 
 # Task management models
@@ -61,7 +61,6 @@ admin.site.register(JobCardTimeLog)
 
 # GPS tracking models
 admin.site.register(GPSTrack)
-admin.site.register(GPSCheckIn)
 admin.site.register(EmployeeGeofence)
 admin.site.register(GPSRoute)
 admin.site.register(GPSSession)

@@ -1,0 +1,109 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="content-wrapper">
+    <!-- Content Header -->
+    <div class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1 class="m-0">Edit Rate Alert</h1>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-right">
+                        <li class="breadcrumb-item"><a href="{% url 'admin_home' %}">Home</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'rate_alerts' %}">Rate Alerts</a></li>
+                        <li class="breadcrumb-item active">Edit</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main content -->
+    <section class="content">
+        <div class="container-fluid">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Edit Rate Alert</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="item_id">Item</label>
+                                    <select class="form-control" id="item_id" name="item_id" required>
+                                        <option value="">Select Item</option>
+                                        {% for item in items %}
+                                        <option value="{{ item.id }}" {% if rate_alert.item_id == item.id %}selected{% endif %}>
+                                            {{ item.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="city_id">City</label>
+                                    <select class="form-control" id="city_id" name="city_id" required>
+                                        <option value="">Select City</option>
+                                        {% for city in cities %}
+                                        <option value="{{ city.id }}" {% if rate_alert.city_id == city.id %}selected{% endif %}>
+                                            {{ city.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="threshold_percentage">Threshold Percentage</label>
+                                    <input type="number" step="0.01" min="0" max="100" class="form-control" 
+                                           id="threshold_percentage" name="threshold_percentage" 
+                                           value="{{ rate_alert.threshold_percentage }}" required>
+                                    <small class="form-text text-muted">Percentage change to trigger alert (0-100)</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="direction">Direction</label>
+                                    <select class="form-control" id="direction" name="direction" required>
+                                        <option value="">Select Direction</option>
+                                        <option value="UP" {% if rate_alert.direction == 'UP' %}selected{% endif %}>Price Increase</option>
+                                        <option value="DOWN" {% if rate_alert.direction == 'DOWN' %}selected{% endif %}>Price Decrease</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="is_active" name="is_active" 
+                                       {% if rate_alert.is_active %}checked{% endif %}>
+                                <label class="form-check-label" for="is_active">
+                                    Active
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Update Rate Alert
+                            </button>
+                            <a href="{% url 'rate_alerts' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Back to Rate Alerts
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

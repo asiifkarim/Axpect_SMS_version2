@@ -226,6 +226,46 @@
                 </li>
 
                 <li class="nav-item">
+                    {% url 'communication_dashboard' as communication_dashboard %}
+                    <a href="{{communication_dashboard}}" class="nav-link {% if communication_dashboard == request.path %}active{% endif %}">
+                        <i class="nav-icon fas fa-history"></i>
+                        <p>Communication Log</p>
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    {% url 'business_calendar' as business_calendar %}
+                    <a href="{{business_calendar}}" class="nav-link {% if business_calendar == request.path %}active{% endif %}">
+                        <i class="nav-icon fas fa-calendar-alt"></i>
+                        <p>Business Calendar</p>
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    {% url 'price_list_manage' as price_list_manage %}
+                    <a href="{{price_list_manage}}" class="nav-link {% if price_list_manage == request.path %}active{% endif %}">
+                        <i class="nav-icon fas fa-tags"></i>
+                        <p>Price Lists</p>
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    {% url 'rate_alerts' as rate_alerts %}
+                    <a href="{{rate_alerts}}" class="nav-link {% if rate_alerts == request.path %}active{% endif %}">
+                        <i class="nav-icon fas fa-exclamation-triangle"></i>
+                        <p>Rate Alerts</p>
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    {% url 'staff_capabilities_matrix' as staff_capabilities_matrix %}
+                    <a href="{{staff_capabilities_matrix}}" class="nav-link {% if staff_capabilities_matrix == request.path %}active{% endif %}">
+                        <i class="nav-icon fas fa-user-check"></i>
+                        <p>Staff Capabilities</p>
+                    </a>
+                </li>
+
+                <li class="nav-item">
                     {% url 'admin_notify_manager' as admin_notify_manager %}
                     <a href="{{admin_notify_manager}}" class="nav-link {% if admin_notify_manager == request.path %}active{% endif %}">
                         <i class="nav-icon fas fa-bell"></i>
@@ -257,6 +297,24 @@
                     <a href="{% url 'view_employee_leave' %}" class="nav-link {% if view_employee_leave == request.path %}active{% endif %}">
                         <i class="nav-icon fas fa-calendar-times"></i>
                         <p>Employee Leave</p>
+                    </a>
+                </li>
+
+                <!-- Social & Communication -->
+                <li class="nav-header">COMMUNICATION</li>
+                
+                <li class="nav-item">
+                    <a href="{% url 'social:dashboard' %}" class="nav-link">
+                        <i class="nav-icon fas fa-comments"></i>
+                        <p>Messages</p>
+                        <span class="badge badge-info right" id="unread-count">0</span>
+                    </a>
+                </li>
+                
+                <li class="nav-item">
+                    <a href="{% url 'social:google_drive_dashboard' %}" class="nav-link">
+                        <i class="nav-icon fab fa-google-drive"></i>
+                        <p>Google Drive</p>
                     </a>
                 </li>
 
@@ -447,6 +505,24 @@
                     </a>
                 </li>
 
+                <!-- Social & Communication -->
+                <li class="nav-header">COMMUNICATION</li>
+                
+                <li class="nav-item">
+                    <a href="{% url 'social:dashboard' %}" class="nav-link">
+                        <i class="nav-icon fas fa-comments"></i>
+                        <p>Messages</p>
+                        <span class="badge badge-info right" id="unread-count">0</span>
+                    </a>
+                </li>
+                
+                <li class="nav-item">
+                    <a href="{% url 'social:google_drive_dashboard' %}" class="nav-link">
+                        <i class="nav-icon fab fa-google-drive"></i>
+                        <p>Google Drive</p>
+                    </a>
+                </li>
+
                 <!-- Logout -->
                 <li class="nav-header">SYSTEM</li>
                 
@@ -620,6 +696,24 @@
                     <a href="{{employee_apply_leave}}" class="nav-link {% if employee_apply_leave == request.path %}active{% endif %}">
                         <i class="nav-icon fas fa-calendar-minus"></i>
                         <p>Apply For Leave</p>
+                    </a>
+                </li>
+
+                <!-- Social & Communication -->
+                <li class="nav-header">COMMUNICATION</li>
+                
+                <li class="nav-item">
+                    <a href="{% url 'social:dashboard' %}" class="nav-link">
+                        <i class="nav-icon fas fa-comments"></i>
+                        <p>Messages</p>
+                        <span class="badge badge-info right" id="unread-count">0</span>
+                    </a>
+                </li>
+                
+                <li class="nav-item">
+                    <a href="{% url 'social:google_drive_dashboard' %}" class="nav-link">
+                        <i class="nav-icon fab fa-google-drive"></i>
+                        <p>Google Drive</p>
                     </a>
                 </li>
 

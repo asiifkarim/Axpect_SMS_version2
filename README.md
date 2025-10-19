@@ -24,6 +24,9 @@ A comprehensive Django-based staff management system with **AI-powered chatbot**
 - **AI Field Report Processing**: Extract customer info, orders, payments from notes
 - **Performance Analytics**: Automated employee performance scoring
 - **Business Calendar**: Holiday and working day management
+- **Price List Management**: Dynamic pricing with rate alerts
+- **Staff Capabilities Matrix**: Track employee skills and competencies
+- **Customer Capabilities**: Monitor customer relationships and volumes
 - **Advanced Reporting**: Real-time dashboards and insights
 - **Predictive Analytics**: AI identifies patterns in business data
 
@@ -31,13 +34,20 @@ A comprehensive Django-based staff management system with **AI-powered chatbot**
 - **WebSocket Communications**: Instant messaging and notifications
 - **Live GPS Tracking**: Real-time employee location monitoring
 - **Social Features**: Internal communication and collaboration
-- **File Sharing**: Document and media sharing capabilities
+- **Google Drive Integration**: Document and media sharing capabilities
+- **Communication Logs**: Track all customer interactions
 
-## 🛠️ Production-Ready Technology Stack
+### 🎯 Management Features
+- **CEO Dashboard**: Comprehensive business overview
+- **Manager Tools**: Team management and reporting
+- **Employee Portal**: Self-service features and task management
+- **Multi-role Access**: CEO, Manager, Employee with appropriate permissions
+
+## 🛠️ Technology Stack
 
 ### Backend Infrastructure
 - **Django 4.2+** with **ASGI (Daphne)** for high performance
-- **PostgreSQL** with connection pooling and query optimization
+- **SQLite** (development) / **PostgreSQL** (production)
 - **Redis Multi-Database**: 6 specialized databases (cache, sessions, celery, channels, defender)
 - **Celery** with multiple priority queues and scheduled tasks
 
@@ -61,10 +71,14 @@ A comprehensive Django-based staff management system with **AI-powered chatbot**
 ```bash
 # Clone and setup
 git clone <repository-url>
-cd axpect_sms
+cd Axpect_SMS_version2
 python -m venv venv
-venv\Scripts\activate  # Windows
-source venv/bin/activate  # Linux/Mac
+
+# Activate virtual environment
+# Windows:
+venv\Scripts\activate
+# Linux/Mac:
+source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
@@ -74,8 +88,11 @@ cp .env.example .env
 # Edit .env with your configuration
 
 # Database setup
+python manage.py makemigrations
 python manage.py migrate
-python manage.py setup_production --admin-email admin@yourcompany.com
+
+# Create superuser
+python manage.py createsuperuser
 
 # Run development server
 python manage.py runserver
@@ -113,11 +130,11 @@ docker-compose -f docker-compose.prod.yml up -d
 "Generate attendance report for December"
 "Check who's present today"
 
-# Field Report Processing (NEW)
+# Field Report Processing
 "Process field report for job card 123"
 → Extracts customer info, orders, payments automatically
 
-# Performance Analysis (NEW)
+# Performance Analysis
 "Analyze job performance for employee 456"
 "Show my performance last 30 days"
 → AI-powered insights and recommendations
@@ -254,6 +271,37 @@ docker-compose up -d
 - **Improved Accuracy**: Automated data processing
 - **Better Decision Making**: Real-time performance insights
 - **Enhanced Productivity**: Streamlined workflows
+
+## 🗂️ Project Structure
+
+```
+Axpect_SMS_version2/
+├── main_app/                 # Core Django application
+│   ├── models.py            # Database models
+│   ├── views.py             # View functions
+│   ├── ceo_views.py         # CEO-specific views
+│   ├── manager_views.py     # Manager-specific views
+│   ├── employee_views.py    # Employee-specific views
+│   ├── gps_views.py         # GPS tracking views
+│   └── templates/           # HTML templates
+├── api/                     # REST API endpoints
+│   ├── views.py             # API views
+│   ├── serializers.py       # Data serializers
+│   └── tasks.py             # Celery tasks
+├── ai/                      # AI chatbot module
+│   ├── llm_handler.py       # LLM integration
+│   ├── actions.py           # AI actions
+│   └── tasks.py             # AI tasks
+├── social/                  # Social features
+│   ├── views.py             # Social views
+│   ├── consumers.py         # WebSocket consumers
+│   └── google_drive.py      # Google Drive integration
+├── axpect_tech_config/      # Django settings
+│   ├── settings.py          # Main settings
+│   ├── urls.py              # URL configuration
+│   └── celery.py            # Celery configuration
+└── static/                  # Static files
+```
 
 ## 🤝 Contributing
 

@@ -1,0 +1,262 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="content-wrapper">
+    <!-- Content Header -->
+    <div class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1 class="m-0">Communication Dashboard</h1>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-right">
+                        <li class="breadcrumb-item"><a href="{% url 'admin_home' %}">Home</a></li>
+                        <li class="breadcrumb-item active">Communication Dashboard</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main content -->
+    <section class="content">
+        <div class="container-fluid">
+            <!-- Filters Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Filters</h3>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row">
+                        <div class="col-md-3">
+                            <label for="customer_id">Customer</label>
+                            <select name="customer_id" id="customer_id" class="form-control">
+                                <option value="">All Customers</option>
+                                {% for customer in customers %}
+                                <option value="{{ customer.id }}" {% if filters.customer_id == customer.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ customer.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="employee_id">Employee</label>
+                            <select name="employee_id" id="employee_id" class="form-control">
+                                <option value="">All Employees</option>
+                                {% for employee in employees %}
+                                <option value="{{ employee.id }}" {% if filters.employee_id == employee.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ employee.get_full_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="channel">Channel</label>
+                            <select name="channel" id="channel" class="form-control">
+                                <option value="">All Channels</option>
+                                {% for ch in channels %}
+                                <option value="{{ ch }}" {% if filters.channel == ch %}selected{% endif %}>
+                                    {{ ch }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="date_from">From Date</label>
+                            <input type="date" name="date_from" id="date_from" class="form-control" value="{{ filters.date_from }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="date_to">To Date</label>
+                            <input type="date" name="date_to" id="date_to" class="form-control" value="{{ filters.date_to }}">
+                        </div>
+                        <div class="col-md-12 mt-3">
+                            <button type="submit" class="btn btn-primary">Apply Filters</button>
+                            <a href="{% url 'communication_dashboard' %}" class="btn btn-secondary">Clear Filters</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Communications Timeline -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Communication Timeline</h3>
+                    <div class="card-tools">
+                        <span class="badge badge-info">{{ communications.paginator.count }} total communications</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if communications %}
+                        <div class="timeline">
+                            {% for comm in communications %}
+                            <div class="time-label">
+                                <span class="bg-{% cycle 'blue' 'green' 'red' 'yellow' 'purple' %}">
+                                    {{ comm.timestamp|date:"M d, Y" }}
+                                </span>
+                            </div>
+                            
+                            <div>
+                                <i class="fas fa-{% if comm.channel == 'EMAIL' %}envelope{% elif comm.channel == 'WHATSAPP' %}whatsapp{% elif comm.channel == 'CALL' %}phone{% else %}comment{% endif %} bg-{% cycle 'blue' 'green' 'red' 'yellow' 'purple' %}"></i>
+                                <div class="timeline-item">
+                                    <span class="time">
+                                        <i class="fas fa-clock"></i> {{ comm.timestamp|time:"H:i" }}
+                                    </span>
+                                    <h3 class="timeline-header">
+                                        <strong>{{ comm.customer.name }}</strong>
+                                        <span class="badge badge-{% if comm.direction == 'INBOUND' %}success{% else %}primary{% endif %}">
+                                            {{ comm.direction }}
+                                        </span>
+                                        <span class="badge badge-secondary">{{ comm.channel }}</span>
+                                    </h3>
+                                    <div class="timeline-body">
+                                        <p><strong>Subject:</strong> {{ comm.subject|default:"No subject" }}</p>
+                                        <p><strong>Message:</strong></p>
+                                        <div class="message-content">
+                                            {{ comm.body|truncatewords:50 }}
+                                        </div>
+                                        {% if comm.user %}
+                                        <p><strong>Handled by:</strong> {{ comm.user.get_full_name }}</p>
+                                        {% endif %}
+                                        {% if comm.linkages %}
+                                        <p><strong>Related:</strong> {{ comm.linkages }}</p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="timeline-footer">
+                                        <a href="#" class="btn btn-primary btn-sm">View Details</a>
+                                        <a href="#" class="btn btn-secondary btn-sm">Reply</a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if communications.has_other_pages %}
+                        <nav aria-label="Communication pagination">
+                            <ul class="pagination justify-content-center">
+                                {% if communications.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">First</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ communications.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Previous</a>
+                                </li>
+                                {% endif %}
+                                
+                                <li class="page-item active">
+                                    <span class="page-link">
+                                        Page {{ communications.number }} of {{ communications.paginator.num_pages }}
+                                    </span>
+                                </li>
+                                
+                                {% if communications.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ communications.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Next</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ communications.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Last</a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-comments fa-3x text-muted mb-3"></i>
+                            <h4>No communications found</h4>
+                            <p class="text-muted">Try adjusting your filters or check back later.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<style>
+.timeline {
+    position: relative;
+    padding: 20px 0;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 31px;
+    height: 100%;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.time-label {
+    position: relative;
+    margin: 0 0 30px 0;
+}
+
+.time-label span {
+    background: #007bff;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.timeline > div {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline > div > i {
+    position: absolute;
+    left: 15px;
+    top: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 12px;
+}
+
+.timeline-item {
+    margin-left: 60px;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.timeline-header {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.timeline-body {
+    margin: 10px 0;
+}
+
+.message-content {
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 4px;
+    border-left: 3px solid #007bff;
+    margin: 10px 0;
+}
+
+.timeline-footer {
+    margin-top: 10px;
+}
+
+.timeline-footer .btn {
+    margin-right: 5px;
+}
+</style>
+{% endblock %}

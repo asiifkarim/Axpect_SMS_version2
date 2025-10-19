@@ -1,0 +1,185 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="content-wrapper">
+    <!-- Content Header -->
+    <div class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1 class="m-0">Staff Capabilities Matrix</h1>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-right">
+                        <li class="breadcrumb-item"><a href="{% url 'admin_home' %}">Home</a></li>
+                        <li class="breadcrumb-item active">Staff Capabilities</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main content -->
+    <section class="content">
+        <div class="container-fluid">
+            <!-- Capabilities Matrix -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Capabilities Matrix</h3>
+                    <div class="card-tools">
+                        <a href="{% url 'customer_capabilities_matrix' %}" class="btn btn-info">
+                            <i class="fas fa-users"></i> Customer Capabilities
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Department</th>
+                                    {% for capability in capabilities %}
+                                    <th class="text-center">{{ capability }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for employee_id, data in capability_matrix.items %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ data.employee.admin.get_full_name }}</strong>
+                                        <br><small class="text-muted">{{ data.employee.admin.email }}</small>
+                                    </td>
+                                    <td>{{ data.employee.department.name }}</td>
+                                    {% for capability in capabilities %}
+                                    <td class="text-center">
+                                        {% for cap_key, cap_value in data.capabilities.items %}
+                                            {% if cap_key == capability %}
+                                                <span class="badge badge-success">
+                                                    {{ cap_value.capability_type }}
+                                                </span>
+                                                {% if cap_value.notes %}
+                                                    <br><small class="text-muted" title="{{ cap_value.notes }}">{{ cap_value.notes|truncatechars:20 }}</small>
+                                                {% endif %}
+                                            {% endif %}
+                                        {% empty %}
+                                            <span class="text-muted">-</span>
+                                        {% endfor %}
+                                        
+                                        <!-- Edit button -->
+                                        <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                data-toggle="modal" data-target="#editCapabilityModal"
+                                                data-employee-id="{{ data.employee.id }}"
+                                                data-employee-name="{{ data.employee.admin.get_full_name }}"
+                                                data-capability="{{ capability }}">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="{{ capabilities|length|add:2 }}" class="text-center">No employees found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Legend -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Capability Levels</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <span class="badge badge-success">Level 3</span> - Expert
+                        </div>
+                        <div class="col-md-3">
+                            <span class="badge badge-warning">Level 2</span> - Intermediate
+                        </div>
+                        <div class="col-md-3">
+                            <span class="badge badge-secondary">Level 1</span> - Beginner
+                        </div>
+                        <div class="col-md-3">
+                            <span class="text-muted">-</span> - No capability
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<!-- Edit Capability Modal -->
+<div class="modal fade" id="editCapabilityModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Capability</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form method="post" action="{% url 'update_capabilities' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Employee</label>
+                        <input type="text" class="form-control" id="modal-employee-name" readonly>
+                        <input type="hidden" id="modal-employee-id" name="employee_id">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Capability</label>
+                        <input type="text" class="form-control" id="modal-capability" name="capability" readonly>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="modal-level">Capability Level</label>
+                        <select class="form-control" id="modal-level" name="level">
+                            <option value="0">Remove Capability</option>
+                            <option value="1">Level 1 - Beginner</option>
+                            <option value="2">Level 2 - Intermediate</option>
+                            <option value="3">Level 3 - Expert</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="modal-notes">Notes</label>
+                        <textarea class="form-control" id="modal-notes" name="notes" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Capability</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    $('#editCapabilityModal').on('show.bs.modal', function (event) {
+        var button = $(event.relatedTarget);
+        var employeeId = button.data('employee-id');
+        var employeeName = button.data('employee-name');
+        var capability = button.data('capability');
+        var level = button.data('level');
+        var notes = button.data('notes');
+        
+        $('#modal-employee-id').val(employeeId);
+        $('#modal-employee-name').val(employeeName);
+        $('#modal-capability').val(capability);
+        $('#modal-level').val(level);
+        $('#modal-notes').val(notes);
+    });
+});
+</script>
+{% endblock %}

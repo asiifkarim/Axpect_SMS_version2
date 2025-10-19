@@ -1,274 +1,218 @@
 """
 LLM Handler for AI Chatbot
-Supports both OpenAI GPT and Google Gemini APIs
+Handles communication with OpenAI and Google Gemini APIs
 """
 
+import os
 import json
 import logging
-import os
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
+
 class LLMHandler:
-    """Handles communication with AI models (OpenAI GPT or Google Gemini)"""
+    """Handles LLM API calls for the AI chatbot"""
     
     def __init__(self):
-        self.openai_api_key = getattr(settings, 'OPENAI_API_KEY', None)
-        self.gemini_api_key = os.environ.get('GEMINI_API_KEY', None)
-        self.preferred_model = os.environ.get('AI_MODEL', 'openai')  # 'openai' or 'gemini'
+        self.openai_api_key = getattr(settings, 'OPENAI_API_KEY', '')
+        self.gemini_api_key = getattr(settings, 'GEMINI_API_KEY', '')
+        self.ai_model = getattr(settings, 'AI_MODEL', 'gemini')
+    
+    def generate_response(self, message: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+        """
+        Generate AI response based on user message and context
         
-    def _get_system_prompt(self) -> str:
-        """Get the system prompt for the AI assistant"""
-        return """You are an AI assistant for a Staff Management System with enhanced field report processing capabilities. You can help with:
-
-1. TASK MANAGEMENT:
-   - Create tasks: "Assign a task to [employee] to [description]"
-   - View tasks: "Show tasks for [employee]" or "What are my tasks?"
-   - Update task status: "Mark task [id] as completed"
-
-2. ATTENDANCE MANAGEMENT:
-   - Check attendance: "Show attendance for [employee]" or "Check my attendance"
-   - View attendance reports: "Show attendance report for [date/period]"
-
-3. EMPLOYEE INFORMATION:
-   - Get employee info: "Show details for [employee]"
-   - List employees: "Show all employees" or "List team members"
-
-4. FIELD REPORT PROCESSING (NEW):
-   - Process field reports: "Process field report for job card [id]"
-   - Analyze performance: "Analyze job performance" or "Show performance for employee [id]"
-   - Extract business data from field visit notes using AI
-
-5. GENERAL QUERIES:
-   - Answer questions about the system
-   - Provide help and guidance
-
-IMPORTANT INSTRUCTIONS:
-- Always respond in a helpful, professional tone
-- If you need to perform an action, include a JSON object with the action details
-- For actions, use this format: {"action": "action_name", "parameters": {...}}
-- Available actions: create_task, get_tasks, get_attendance, get_employee_info, list_employees, process_field_report, analyze_job_performance
-- If you cannot perform an action due to permissions, explain why
-- Always confirm successful actions with a friendly message
-- For field report processing, ensure the job card has notes/text to process
-
-Examples:
-User: "Assign a task to Ali to complete the project report"
-Response: I'll create that task for Ali right away.
-{"action": "create_task", "parameters": {"employee_name": "Ali", "description": "complete the project report", "priority": "medium"}}
-
-User: "Show my attendance"
-Response: Let me check your attendance records.
-{"action": "get_attendance", "parameters": {"employee_name": "current_user"}}
-"""
-
-    def _extract_action_from_response(self, response: str) -> Tuple[str, Optional[Dict]]:
-        """Extract action and parameters from AI response"""
+        Args:
+            message: User's input message
+            context: Additional context (user info, conversation history, etc.)
+            
+        Returns:
+            Dict containing response text and metadata
+        """
         try:
-            # Look for JSON in the response
-            start_idx = response.find('{')
-            end_idx = response.rfind('}') + 1
-            
-            if start_idx != -1 and end_idx > start_idx:
-                json_str = response[start_idx:end_idx]
-                action_data = json.loads(json_str)
-                
-                if 'action' in action_data:
-                    # Remove the JSON from the response text
-                    clean_response = response[:start_idx] + response[end_idx:]
-                    clean_response = clean_response.strip()
-                    
-                    return clean_response, action_data
-            
-            return response, None
-            
-        except (json.JSONDecodeError, ValueError) as e:
-            logger.warning(f"Failed to extract action from response: {e}")
-            return response, None
-
-    def _call_openai(self, message: str, user_context: Dict) -> str:
-        """Call OpenAI GPT API"""
+            if self.ai_model.lower() == 'openai':
+                return self._call_openai(message, context)
+            elif self.ai_model.lower() == 'gemini':
+                return self._call_gemini(message, context)
+            else:
+                return self._fallback_response(message)
+        except Exception as e:
+            logger.error(f"Error generating AI response: {str(e)}")
+            return {
+                'response': "I'm sorry, I'm having trouble processing your request right now. Please try again later.",
+                'success': False,
+                'error': str(e)
+            }
+    
+    def _call_openai(self, message: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Call OpenAI API"""
         try:
             import openai
             
+            if not self.openai_api_key:
+                return self._fallback_response(message)
+            
             openai.api_key = self.openai_api_key
             
-            messages = [
-                {"role": "system", "content": self._get_system_prompt()},
-                {"role": "user", "content": f"User context: {json.dumps(user_context)}\n\nUser message: {message}"}
-            ]
+            # Build system prompt
+            system_prompt = self._build_system_prompt(context)
             
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
-                messages=messages,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": message}
+                ],
                 max_tokens=500,
                 temperature=0.7
             )
             
-            return response.choices[0].message.content.strip()
+            return {
+                'response': response.choices[0].message.content,
+                'success': True,
+                'model': 'openai',
+                'tokens_used': response.usage.total_tokens
+            }
             
+        except ImportError:
+            logger.error("OpenAI library not installed")
+            return self._fallback_response(message)
         except Exception as e:
-            logger.error(f"OpenAI API error: {e}")
-            return "I'm sorry, I'm having trouble processing your request right now. Please try again later."
-
-    def _call_gemini(self, message: str, user_context: Dict) -> str:
+            logger.error(f"OpenAI API error: {str(e)}")
+            return self._fallback_response(message)
+    
+    def _call_gemini(self, message: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """Call Google Gemini API"""
         try:
             import google.generativeai as genai
             
+            if not self.gemini_api_key:
+                return self._fallback_response(message)
+            
             genai.configure(api_key=self.gemini_api_key)
+            model = genai.GenerativeModel('gemini-pro')
             
-            # Try different model names in order of preference
-            model_names = [
-                'gemini-1.5-flash-latest',
-                'gemini-1.5-flash', 
-                'gemini-pro',
-                'models/gemini-1.5-flash-latest',
-                'models/gemini-1.5-flash',
-                'models/gemini-pro'
-            ]
+            # Build prompt
+            prompt = self._build_system_prompt(context) + "\n\nUser: " + message
             
-            prompt = f"{self._get_system_prompt()}\n\nUser context: {json.dumps(user_context)}\n\nUser message: {message}"
+            response = model.generate_content(prompt)
             
-            last_error = None
-            for model_name in model_names:
-                try:
-                    model = genai.GenerativeModel(model_name)
-                    response = model.generate_content(prompt)
-                    if response and response.text:
-                        logger.info(f"Successfully used Gemini model: {model_name}")
-                        return response.text.strip()
-                except Exception as e:
-                    last_error = e
-                    logger.warning(f"Failed to use model {model_name}: {e}")
-                    continue
+            return {
+                'response': response.text,
+                'success': True,
+                'model': 'gemini',
+                'candidates': len(response.candidates) if hasattr(response, 'candidates') else 1
+            }
             
-            # If all models failed, raise the last error
-            raise last_error if last_error else Exception("No working Gemini model found")
-            
+        except ImportError:
+            logger.error("Google Generative AI library not installed")
+            return self._fallback_response(message)
         except Exception as e:
-            logger.error(f"Gemini API error: {e}")
-            # Return fallback response instead of generic error
-            return self._fallback_response(message, user_context)
+            logger.error(f"Gemini API error: {str(e)}")
+            return self._fallback_response(message)
+    
+    def _build_system_prompt(self, context: Dict[str, Any] = None) -> str:
+        """Build system prompt for the AI"""
+        base_prompt = """You are an AI assistant for Axpect SMS, a staff management system. You help users with:
 
-    def process_chat(self, message: str, user_context: Dict) -> Tuple[str, Optional[Dict]]:
+1. Task Management: Create, assign, and track tasks
+2. Attendance: Check attendance records and reports
+3. Employee Information: Look up employee details
+4. Job Cards: Manage job cards and assignments
+5. Field Reports: Process and analyze field reports
+6. General Questions: Answer questions about the system
+
+Be helpful, professional, and concise. If you need to perform specific actions, mention what you can do."""
+        
+        if context:
+            user_info = context.get('user_info', {})
+            if user_info:
+                base_prompt += f"\n\nCurrent user: {user_info.get('name', 'Unknown')} ({user_info.get('type', 'Unknown')})"
+        
+        return base_prompt
+    
+    def _fallback_response(self, message: str) -> Dict[str, Any]:
+        """Fallback response when AI services are unavailable"""
+        return {
+            'response': "I'm currently unable to process your request. Please check your AI configuration or try again later.",
+            'success': False,
+            'model': 'fallback'
+        }
+    
+    def process_field_report(self, report_text: str) -> Dict[str, Any]:
         """
-        Process chat message and return response with optional action
+        Process field report text and extract structured data
         
         Args:
-            message: User's message
-            user_context: Dictionary containing user info (name, role, permissions, etc.)
+            report_text: Raw field report text
             
         Returns:
-            Tuple of (response_text, action_dict)
+            Dict containing extracted structured data
         """
         try:
-            # Choose AI model based on configuration and availability
-            if self.preferred_model == 'gemini' and self.gemini_api_key:
-                response = self._call_gemini(message, user_context)
-            elif self.openai_api_key:
-                response = self._call_openai(message, user_context)
+            # This is a simplified version - in production, you'd want more sophisticated NLP
+            prompt = f"""
+            Analyze this field report and extract key information in JSON format:
+            
+            Report: {report_text}
+            
+            Extract:
+            - customer_name
+            - contact_person
+            - outcome (order_taken, follow_up, etc.)
+            - order_details (quantity, rate, amount)
+            - payment_details (method, amount, status)
+            - follow_up_required (yes/no)
+            - follow_up_reason
+            - follow_up_date
+            - confidence_score (0-1)
+            
+            Return only valid JSON.
+            """
+            
+            if self.ai_model.lower() == 'openai':
+                response = self._call_openai(prompt)
+            elif self.ai_model.lower() == 'gemini':
+                response = self._call_gemini(prompt)
             else:
-                # Fallback to rule-based responses if no API keys available
-                response = self._fallback_response(message, user_context)
+                return self._fallback_field_report()
             
-            # Extract action from response
-            clean_response, action = self._extract_action_from_response(response)
+            if response.get('success'):
+                try:
+                    # Try to parse JSON from response
+                    json_start = response['response'].find('{')
+                    json_end = response['response'].rfind('}') + 1
+                    if json_start != -1 and json_end > json_start:
+                        json_str = response['response'][json_start:json_end]
+                        structured_data = json.loads(json_str)
+                        return {
+                            'success': True,
+                            'structured_data': structured_data,
+                            'confidence_score': structured_data.get('confidence_score', 0.8)
+                        }
+                except json.JSONDecodeError:
+                    pass
             
-            return clean_response, action
+            return self._fallback_field_report()
             
         except Exception as e:
-            logger.error(f"Error processing chat: {e}")
-            return "I apologize, but I encountered an error while processing your request. Please try again.", None
-
-    def _fallback_response(self, message: str, user_context: Dict) -> str:
-        """Fallback rule-based responses when AI APIs are not available"""
-        message_lower = message.lower()
-        
-        # Greeting patterns
-        if any(keyword in message_lower for keyword in ['hello', 'hi', 'hey', 'what can you help']):
-            return """👋 Hello! I'm your AI assistant for the Staff Management System. 
-
-I can help you with:
-🔹 **Task Management**: Create, assign, and track tasks
-🔹 **Attendance**: Check attendance records and reports  
-🔹 **Employee Info**: View employee details and team information
-
-Try these commands:
-- "Show my tasks"
-- "Show my attendance" 
-- "List all employees"
-- "Help" for more options"""
-
-        # Task-related patterns
-        elif any(keyword in message_lower for keyword in ['task', 'assign']):
-            if 'show' in message_lower or 'list' in message_lower:
-                if 'all' in message_lower or 'everyone' in message_lower:
-                    return """I'll show you all tasks in the system.
-{"action": "list_all_tasks", "parameters": {}}"""
-                else:
-                    return """I'll check your tasks right away.
-{"action": "get_tasks", "parameters": {"employee_name": "current_user"}}"""
-            elif 'assign' in message_lower or 'create' in message_lower:
-                return """I can help you create tasks! 
-
-Example: "Assign a task to John to review the monthly report"
-
-For now, please use the sidebar menu to create tasks manually, or provide a valid API key for full AI functionality."""
-        
-        # Attendance patterns
-        elif any(keyword in message_lower for keyword in ['attendance', 'check in', 'check out']):
-            if 'all' in message_lower or 'everyone' in message_lower or 'staff' in message_lower:
-                return """I'll show you all staff attendance records.
-{"action": "list_all_attendance", "parameters": {}}"""
-            else:
-                return """Let me check your attendance records.
-{"action": "get_attendance", "parameters": {"employee_name": "current_user"}}"""
-
-        # Employee info patterns
-        elif any(keyword in message_lower for keyword in ['employee', 'list', 'team']):
-            return """I'll get the employee information for you.
-{"action": "list_employees", "parameters": {}}"""
-
-        # General help
-        elif any(keyword in message_lower for keyword in ['help', 'what can you do', 'commands']):
-            return """🤖 **AI Assistant Help**
-
-**Available Commands:**
-- "Show my tasks" - View your assigned tasks
-- "List all tasks" - View all tasks in the system (admins)
-- "Show tasks for [employee name]" - View specific employee's tasks
-- "Show my attendance" - Check your attendance records
-- "Show all staff attendance" - View all employees' attendance (admins)
-- "Show attendance for [employee name]" - View specific employee's attendance
-- "List all employees" - View team members
-- "Show details for [employee name]" - Get employee info
-
-**Task Management:**
-- "Assign a task to [name] to [description]" (requires API key)
-- "Show all tasks" - See all tasks you've created and assigned
-
-**Admin Features:**
-- Full access to all employee data
-- Create and manage tasks for any employee
-- View system-wide reports and analytics
-
-**Quick Actions:** Use the buttons below for common tasks! 📋 📅 👥"""
-
-        else:
-            return """I'm here to help with your staff management needs! 
-
-Try saying:
-- "Show my tasks"
-- "Show my attendance" 
-- "List all employees"
-- "Help" for more options
-
-**Note:** Some advanced features require a valid API key. Contact your administrator for full AI functionality."""
-
-
-def get_llm_handler() -> LLMHandler:
-    """Get a configured LLM handler instance"""
-    return LLMHandler()
+            logger.error(f"Error processing field report: {str(e)}")
+            return self._fallback_field_report()
+    
+    def _fallback_field_report(self) -> Dict[str, Any]:
+        """Fallback for field report processing"""
+        return {
+            'success': False,
+            'structured_data': {
+                'customer_name': 'Unknown',
+                'contact_person': 'Unknown',
+                'outcome': 'Unknown',
+                'order_details': {},
+                'payment_details': {},
+                'follow_up_required': False,
+                'confidence_score': 0.0
+            },
+            'error': 'Unable to process field report'
+        }

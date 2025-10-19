@@ -1,17 +1,34 @@
-.vscode
-.idea
-*.pyc
-media/
-main_app/migrations/*
-!main_app/migrations/__init__.py
-!main_app/migrations/0001_initial.py
-db.sqlite3
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
-# ignore node modules
-frontend/node_modules/
-node_modules/
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Environments
+# Virtual environments
 .env
 .venv
 env/
@@ -19,3 +36,96 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+venv*/
+env*/
+
+# Database
+db.sqlite3
+*.db
+*.sqlite3
+
+# Media and static files
+media/
+staticfiles/
+static/admin/
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Node modules
+node_modules/
+frontend/node_modules/
+
+# Test files and coverage
+.coverage
+.pytest_cache/
+.tox/
+htmlcov/
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+
+# Documentation and reports
+*.md
+!README.md
+FEATURE_MAPPING_REPORT.md
+IMPLEMENTATION_REPORT.md
+PRODUCTION_DEPLOYMENT_GUIDE.md
+PROJECT_DOCUMENTATION.md
+plan.md
+
+# Migration files (keep only initial)
+main_app/migrations/*
+!main_app/migrations/__init__.py
+!main_app/migrations/0001_initial.py
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Redis
+dump.rdb
+
+# Docker
+.dockerignore
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Environment specific
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json

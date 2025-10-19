@@ -2,6 +2,7 @@ from rest_framework import status, viewsets, permissions
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
+from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import login
 from django.utils import timezone
 from django.db.models import Q, Sum, Count
@@ -9,14 +10,19 @@ from datetime import datetime, timedelta
 from main_app.models import (
     CustomUser, Employee, Customer, JobCard, JobCardAction,
     Order, OrderItem, Payment, Attendance,
-    CommunicationLog, City, Item, Notification
+    CommunicationLog, City, Item, Notification,
+    StaffScoresDaily, EmployeeTask, PriceList, BusinessCalendar,
+    RateAlert, StaffCapability, CustomerCapability, ChatGroup, ChatMessage
 )
 from .serializers import (
     LoginSerializer, UserSerializer, AttendanceSerializer,
     CitySerializer, CustomerSerializer, JobCardSerializer,
     JobCardActionSerializer, OrderSerializer, OrderItemSerializer,
     PaymentSerializer, CommunicationLogSerializer,
-    NotificationSerializer, ItemSerializer
+    NotificationSerializer, ItemSerializer, StaffScoresDailySerializer,
+    EmployeeTaskSerializer, PriceListSerializer, BusinessCalendarSerializer,
+    RateAlertSerializer, StaffCapabilitySerializer, CustomerCapabilitySerializer,
+    ChatGroupSerializer, ChatMessageSerializer
 )
 import json
 
@@ -438,3 +444,158 @@ def trigger_whatsapp_processing(request):
     from .tasks import process_whatsapp_messages
     process_whatsapp_messages.delay()
     return Response({'status': 'queued'})
+
+
+# Employee Task Management API
+class EmployeeTaskViewSet(viewsets.ModelViewSet):
+    """API for managing employee tasks"""
+    serializer_class = EmployeeTaskSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.user_type == 1:  # CEO/Admin
+            return EmployeeTask.objects.all()
+        elif user.user_type == 2:  # Manager
+            return EmployeeTask.objects.filter(assigned_by=user)
+        elif user.user_type == 3:  # Employee
+            employee = Employee.objects.get(admin=user)
+            return EmployeeTask.objects.filter(employee=employee)
+        return EmployeeTask.objects.none()
+    
+    def perform_create(self, serializer):
+        serializer.save(assigned_by=self.request.user)
+
+
+# Price List Management API
+class PriceListViewSet(viewsets.ReadOnlyModelViewSet):
+    """API for viewing price lists"""
+    serializer_class = PriceListSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        return PriceList.objects.filter(is_active=True).order_by('-effective_from')
+
+
+# Communication Log API
+class CommunicationLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """API for viewing communication logs"""
+    serializer_class = CommunicationLogSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.user_type == 1:  # CEO/Admin
+            return CommunicationLog.objects.all()
+        elif user.user_type == 2:  # Manager
+            return CommunicationLog.objects.filter(user=user)
+        elif user.user_type == 3:  # Employee
+            return CommunicationLog.objects.filter(user=user)
+        return CommunicationLog.objects.none()
+
+
+# Staff Capabilities API
+class StaffCapabilityViewSet(viewsets.ModelViewSet):
+    """API for managing staff capabilities"""
+    serializer_class = StaffCapabilitySerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.user_type == 1:  # CEO/Admin
+            return StaffCapability.objects.all()
+        elif user.user_type == 2:  # Manager
+            return StaffCapability.objects.filter(employee__department__manager__admin=user)
+        return StaffCapability.objects.none()
+
+
+# Customer Capabilities API
+class CustomerCapabilityViewSet(viewsets.ModelViewSet):
+    """API for managing customer capabilities"""
+    serializer_class = CustomerCapabilitySerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.user_type == 1:  # CEO/Admin
+            return CustomerCapability.objects.all()
+        elif user.user_type == 2:  # Manager
+            return CustomerCapability.objects.all()  # Managers can see all customer capabilities
+        return CustomerCapability.objects.none()
+
+
+# Rate Alerts API
+class RateAlertViewSet(viewsets.ModelViewSet):
+    """API for managing rate alerts"""
+    serializer_class = RateAlertSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.user_type == 1:  # CEO/Admin
+            return RateAlert.objects.all()
+        return RateAlert.objects.none()
+
+
+# Business Calendar API
+class BusinessCalendarViewSet(viewsets.ModelViewSet):
+    """API for managing business calendar"""
+    serializer_class = BusinessCalendarSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.user_type == 1:  # CEO/Admin
+            return BusinessCalendar.objects.all()
+        return BusinessCalendar.objects.none()
+
+
+# Staff Scores API
+class StaffScoresDailyViewSet(viewsets.ReadOnlyModelViewSet):
+    """API for viewing staff scores"""
+    serializer_class = StaffScoresDailySerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.user_type == 1:  # CEO/Admin
+            return StaffScoresDaily.objects.all()
+        elif user.user_type == 2:  # Manager
+            return StaffScoresDaily.objects.filter(employee__department__manager__admin=user)
+        elif user.user_type == 3:  # Employee
+            employee = Employee.objects.get(admin=user)
+            return StaffScoresDaily.objects.filter(employee=employee)
+        return StaffScoresDaily.objects.none()
+
+
+# Chat Groups API
+class ChatGroupViewSet(viewsets.ModelViewSet):
+    """API for managing chat groups"""
+    serializer_class = ChatGroupSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        return ChatGroup.objects.filter(
+            members__user=user,
+            members__is_active=True
+        ).distinct()
+
+
+# Chat Messages API
+class ChatMessageViewSet(viewsets.ModelViewSet):
+    """API for managing chat messages"""
+    serializer_class = ChatMessageSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        group_id = self.request.query_params.get('group_id')
+        if group_id:
+            return ChatMessage.objects.filter(
+                group_id=group_id,
+                is_deleted=False
+            ).order_by('created_at')
+        return ChatMessage.objects.none()
+    
+    def perform_create(self, serializer):
+        serializer.save(sender=self.request.user)

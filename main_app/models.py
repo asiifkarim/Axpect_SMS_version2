@@ -99,6 +99,14 @@ class Attendance(models.Model):
     department = models.ForeignKey(Department, on_delete=models.DO_NOTHING)
     date = models.DateField()
     notes = models.TextField(blank=True)
+    
+    # GPS tracking fields for check-in/check-out
+    start_ts = models.DateTimeField(null=True, blank=True, help_text='Check-in timestamp')
+    end_ts = models.DateTimeField(null=True, blank=True, help_text='Check-out timestamp')
+    start_gps = models.CharField(max_length=100, blank=True, help_text='Check-in GPS coordinates (lat,lon)')
+    end_gps = models.CharField(max_length=100, blank=True, help_text='Check-out GPS coordinates (lat,lon)')
+    working_city = models.ForeignKey('City', on_delete=models.SET_NULL, null=True, blank=True, help_text='City where employee is working')
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -417,12 +425,7 @@ class PaymentInstrument(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="PENDING")
 
 
-class BusinessCalendar(models.Model):
-    title = models.CharField(max_length=255)
-    item = models.ForeignKey(Item, on_delete=models.SET_NULL, null=True, blank=True)
-    event_date = models.DateField()
-    lead_days = models.IntegerField(default=0)
-    notes = models.TextField(blank=True)
+# BusinessCalendar model moved to end of file to avoid duplication
 
 
 class RateAlert(models.Model):
@@ -438,24 +441,7 @@ class RateAlert(models.Model):
     is_active = models.BooleanField(default=True)
 
 
-class CityWeekdayPlan(models.Model):
-    WEEKDAY_CHOICES = (
-        (1, "Monday"),
-        (2, "Tuesday"),
-        (3, "Wednesday"),
-        (4, "Thursday"),
-        (5, "Friday"),
-        (6, "Saturday"),
-        (7, "Sunday"),
-    )
-    
-    city = models.ForeignKey(City, on_delete=models.CASCADE)
-    weekday = models.IntegerField(choices=WEEKDAY_CHOICES)
-    staff = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, blank=True)
-    team = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
-    
-    class Meta:
-        unique_together = ("city", "weekday")
+# CityWeekdayPlan model moved to end of file to avoid duplication
 
 
 class Notification(models.Model):
@@ -476,22 +462,7 @@ class Notification(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 
-class AIProcessingLog(models.Model):
-    STATUS_CHOICES = (
-        ("PENDING", "Pending"),
-        ("PROCESSING", "Processing"),
-        ("COMPLETED", "Completed"),
-        ("FAILED", "Failed"),
-    )
-    
-    jobcard_action = models.ForeignKey(JobCardAction, on_delete=models.CASCADE)
-    input_text = models.TextField()
-    processed_data = models.JSONField(null=True, blank=True)
-    confidence_score = models.FloatField(null=True, blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="PENDING")
-    error_message = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    processed_at = models.DateTimeField(null=True, blank=True)
+# AIProcessingLog model moved to end of file to avoid duplication
 
 
 
@@ -816,35 +787,7 @@ class UserStatus(models.Model):
         return f'{self.user.get_full_name()} - {self.status_type}'
 
 
-class EmployeeGPSAttendance(models.Model):
-    """GPS-based attendance tracking for employees"""
-    PERFORMANCE_CHOICES = [
-        (1, '1 Star - Poor'),
-        (2, '2 Stars - Below Average'),
-        (3, '3 Stars - Average'),
-        (4, '4 Stars - Good'),
-        (5, '5 Stars - Excellent'),
-    ]
-    
-    employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
-    date = models.DateField()
-    checkin_time = models.DateTimeField(blank=True, null=True)
-    checkin_gps = models.CharField(blank=True, max_length=120)
-    checkout_time = models.DateTimeField(blank=True, null=True)
-    checkout_gps = models.CharField(blank=True, max_length=120)
-    work_notes = models.TextField(blank=True)
-    performance_rating = models.IntegerField(blank=True, choices=PERFORMANCE_CHOICES, null=True)
-    rating_date = models.DateTimeField(blank=True, null=True)
-    rating_comments = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        unique_together = ['employee', 'date']
-        ordering = ['-date']
-    
-    def __str__(self):
-        return f'{self.employee.admin.first_name} - {self.date}'
+# EmployeeGPSAttendance model moved to end of file to avoid duplication
 
 
 class StaffScoresDaily(models.Model):
@@ -1428,8 +1371,8 @@ class BusinessCalendar(models.Model):
     city = models.ForeignKey('City', on_delete=models.CASCADE, null=True, blank=True)
     applies_to_all = models.BooleanField(default=True)
     
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(null=True, blank=True)
     
     class Meta:
         ordering = ['date']
@@ -1459,8 +1402,8 @@ class CityWeekdayPlan(models.Model):
     start_time = models.TimeField(null=True, blank=True)
     end_time = models.TimeField(null=True, blank=True)
     
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(null=True, blank=True)
     
     class Meta:
         unique_together = ['city', 'weekday']
@@ -1557,47 +1500,7 @@ class GPSLocationHistory(models.Model):
         return f"{self.employee.get_full_name()} - {self.recorded_at}"
 
 
-class EmployeeGPSAttendance(models.Model):
-    """
-    Enhanced GPS-based attendance tracking
-    """
-    employee = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
-    
-    # Check-in data
-    checkin_time = models.DateTimeField()
-    checkin_latitude = models.DecimalField(max_digits=10, decimal_places=8)
-    checkin_longitude = models.DecimalField(max_digits=11, decimal_places=8)
-    checkin_accuracy = models.FloatField(null=True, blank=True)
-    checkin_photo = models.ImageField(upload_to='attendance_photos/', null=True, blank=True)
-    checkin_geofence = models.ForeignKey(GPSGeofence, on_delete=models.SET_NULL, null=True, blank=True, related_name='checkin_records')
-    
-    # Check-out data
-    checkout_time = models.DateTimeField(null=True, blank=True)
-    checkout_latitude = models.DecimalField(max_digits=10, decimal_places=8, null=True, blank=True)
-    checkout_longitude = models.DecimalField(max_digits=11, decimal_places=8, null=True, blank=True)
-    checkout_accuracy = models.FloatField(null=True, blank=True)
-    checkout_photo = models.ImageField(upload_to='attendance_photos/', null=True, blank=True)
-    checkout_geofence = models.ForeignKey(GPSGeofence, on_delete=models.SET_NULL, null=True, blank=True, related_name='checkout_records')
-    
-    # Calculated fields
-    total_hours = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    distance_traveled = models.FloatField(null=True, blank=True)  # Total distance in km
-    
-    # Validation
-    is_valid = models.BooleanField(default=True)
-    validation_notes = models.TextField(blank=True)
-    
-    # Metadata
-    date = models.DateField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        unique_together = ['employee', 'date']
-        ordering = ['-date']
-    
-    def __str__(self):
-        return f"{self.employee.get_full_name()} - {self.date}"
+# EmployeeGPSAttendance model already defined above - removing duplicate
 
 
 class EmployeeLocationSession(models.Model):

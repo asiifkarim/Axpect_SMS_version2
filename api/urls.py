@@ -10,6 +10,18 @@ router.register(r'customers', views.CustomerViewSet, basename='customer')
 router.register(r'orders', views.OrderViewSet, basename='order')
 router.register(r'payments', views.PaymentViewSet, basename='payment')
 
+# New API endpoints
+router.register(r'tasks', views.EmployeeTaskViewSet, basename='task')
+router.register(r'price-lists', views.PriceListViewSet, basename='pricelist')
+router.register(r'communication-logs', views.CommunicationLogViewSet, basename='communicationlog')
+router.register(r'staff-capabilities', views.StaffCapabilityViewSet, basename='staffcapability')
+router.register(r'customer-capabilities', views.CustomerCapabilityViewSet, basename='customercapability')
+router.register(r'rate-alerts', views.RateAlertViewSet, basename='ratealert')
+router.register(r'business-calendar', views.BusinessCalendarViewSet, basename='businesscalendar')
+router.register(r'staff-scores', views.StaffScoresDailyViewSet, basename='staffscore')
+router.register(r'chat-groups', views.ChatGroupViewSet, basename='chatgroup')
+router.register(r'chat-messages', views.ChatMessageViewSet, basename='chatmessage')
+
 urlpatterns = [
     # Authentication
     path('auth/login/', views.login_api, name='api_login'),
