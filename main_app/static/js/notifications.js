@@ -7,11 +7,17 @@ class NotificationManager {
     constructor() {
         this.container = null;
         this.notifications = [];
+        this.audioContext = null;
+        this.soundEnabled = true;
         this.init();
     }
 
     init() {
         // Create notification container
+        this.createContainer();
+        
+        // Initialize audio context for notification sounds
+        this.initAudioContext();
         
         // Initialize real-time notifications if available
         this.initRealTimeNotifications();
@@ -35,7 +41,7 @@ class NotificationManager {
                     top: 20px;
                     right: 20px;
                     z-index: 9999;
-                    max-width: 400px;
+                    max-width: 350px;
                 }
                 
                 .toast-notification {
@@ -43,11 +49,14 @@ class NotificationManager {
                     border-radius: 8px;
                     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
                     margin-bottom: 10px;
-                    padding: 16px;
+                    padding: 12px;
                     border-left: 4px solid #007bff;
                     animation: slideInRight 0.3s ease-out;
                     position: relative;
                     overflow: hidden;
+                    max-width: 350px;
+                    min-width: 280px;
+                    font-size: 14px;
                 }
                 
                 .toast-notification.success {
@@ -205,6 +214,10 @@ class NotificationManager {
             job_assignment: title || 'Job Assignment'
         };
 
+        // Play notification sound based on type
+        const soundType = options.soundType || this.getSoundTypeFromNotificationType(type);
+        this.playNotificationSound(soundType);
+
         const toast = document.createElement('div');
         toast.className = `toast-notification ${type} ${options.className || ''}`;
         
@@ -284,7 +297,7 @@ class NotificationManager {
                     text: 'View Details',
                     className: 'btn-light btn-sm',
                     handler: () => {
-                        window.location.href = `/jobcard/${jobCard.id}/`;
+                        window.location.href = `/job-card/${jobCard.id}/`;
                     }
                 }
             ]
@@ -307,7 +320,7 @@ class NotificationManager {
         // This would connect to Django Channels if available
         try {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/ws/notifications/`;
+            const wsUrl = `${protocol}//${window.location.host}/ws/social/notifications/`;
             
             this.websocket = new WebSocket(wsUrl);
             
@@ -356,9 +369,21 @@ class NotificationManager {
     }
 
     handleRealTimeNotification(data) {
+        // Check if already displayed in this session
+        const displayedNotifications = JSON.parse(
+            sessionStorage.getItem('displayed_notifications') || '[]'
+        );
+        
+        if (data.id && displayedNotifications.includes(data.id)) {
+            return; // Don't show again
+        }
+        
+        // Display notification based on type
+        let notificationShown = false;
         switch (data.type) {
             case 'job_assignment':
                 this.showJobAssignment(data.job_card, data.assigned_to);
+                notificationShown = true;
                 break;
             case 'job_status_update':
                 this.show(
@@ -366,18 +391,64 @@ class NotificationManager {
                     'info',
                     'Job Status Update'
                 );
+                notificationShown = true;
                 break;
             case 'new_message':
                 this.show(data.message, 'info', 'New Message');
+                notificationShown = true;
                 break;
             default:
                 this.show(data.message, data.level || 'info', data.title);
+                notificationShown = true;
+        }
+        
+        // If notification was shown and has an ID, track it
+        if (notificationShown && data.id) {
+            // Mark as displayed in session
+            displayedNotifications.push(data.id);
+            sessionStorage.setItem('displayed_notifications', 
+                JSON.stringify(displayedNotifications)
+            );
+            
+            // Mark as read on server
+            this.markNotificationAsRead(data.id);
         }
     }
 
     getCSRFToken() {
         return document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
                document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    }
+
+    markNotificationAsRead(notificationId) {
+        // Mark notification as read on server
+        fetch('/api/notifications/mark-read/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': this.getCSRFToken(),
+            },
+            body: JSON.stringify({
+                notification_id: notificationId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Notification marked as read:', notificationId);
+            } else {
+                console.warn('Failed to mark notification as read:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error marking notification as read:', error);
+        });
+    }
+
+    clearDisplayedNotifications() {
+        // Clear the session storage of displayed notifications
+        sessionStorage.removeItem('displayed_notifications');
+        console.log('Cleared displayed notifications from session');
     }
 
     // Utility methods for common notifications
@@ -552,6 +623,114 @@ class NotificationManager {
         if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
         if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
         return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    }
+
+    initAudioContext() {
+        try {
+            // Initialize Web Audio API for notification sounds
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Check user's sound preference from localStorage or settings
+            const soundPreference = localStorage.getItem('notification_sound_enabled');
+            if (soundPreference !== null) {
+                this.soundEnabled = soundPreference === 'true';
+            }
+        } catch (error) {
+            console.warn('Web Audio API not supported:', error);
+            this.soundEnabled = false;
+        }
+    }
+
+    playNotificationSound(type = 'default') {
+        if (!this.soundEnabled || !this.audioContext) {
+            return;
+        }
+
+        try {
+            // Resume audio context if suspended (required for user interaction)
+            if (this.audioContext.state === 'suspended') {
+                this.audioContext.resume();
+            }
+
+            // Create oscillator for notification beep
+            const oscillator = this.audioContext.createOscillator();
+            const gainNode = this.audioContext.createGain();
+
+            // Configure sound based on notification type
+            let frequency, duration;
+            switch (type) {
+                case 'message':
+                    frequency = 800; // Higher pitch for messages
+                    duration = 0.2;
+                    break;
+                case 'task':
+                    frequency = 600; // Medium pitch for tasks
+                    duration = 0.3;
+                    break;
+                case 'urgent':
+                    frequency = 1000; // High pitch for urgent notifications
+                    duration = 0.4;
+                    break;
+                case 'leave':
+                case 'feedback':
+                case 'jobcard':
+                    frequency = 500; // Lower pitch for admin notifications
+                    duration = 0.25;
+                    break;
+                default:
+                    frequency = 700; // Default pitch
+                    duration = 0.2;
+            }
+
+            // Configure oscillator
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
+            oscillator.frequency.setValueAtTime(frequency * 1.2, this.audioContext.currentTime + duration * 0.5);
+
+            // Configure gain (volume)
+            gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.3, this.audioContext.currentTime + 0.01);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+
+            // Connect nodes
+            oscillator.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
+
+            // Play sound
+            oscillator.start(this.audioContext.currentTime);
+            oscillator.stop(this.audioContext.currentTime + duration);
+
+        } catch (error) {
+            console.warn('Error playing notification sound:', error);
+        }
+    }
+
+    setSoundEnabled(enabled) {
+        this.soundEnabled = enabled;
+        localStorage.setItem('notification_sound_enabled', enabled.toString());
+    }
+
+    toggleSound() {
+        this.setSoundEnabled(!this.soundEnabled);
+        return this.soundEnabled;
+    }
+
+    getSoundTypeFromNotificationType(type) {
+        // Map notification types to sound types
+        const soundTypeMap = {
+            'job_assignment': 'task',
+            'new_message': 'message',
+            'leave_request': 'leave',
+            'feedback_submitted': 'feedback',
+            'job_card_created': 'jobcard',
+            'urgent': 'urgent',
+            'error': 'urgent',
+            'warning': 'urgent',
+            'success': 'default',
+            'info': 'default'
+        };
+        
+        return soundTypeMap[type] || 'default';
     }
 }
 

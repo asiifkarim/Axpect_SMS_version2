@@ -156,6 +156,8 @@ class FeedbackManager(models.Model):
 class NotificationManager(models.Model):
     manager = models.ForeignKey(Manager, on_delete=models.CASCADE)
     message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -163,6 +165,8 @@ class NotificationManager(models.Model):
 class NotificationEmployee(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
     message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -459,6 +463,8 @@ class Notification(models.Model):
     sent_at = models.DateTimeField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
     error = models.TextField(blank=True)
+    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
 

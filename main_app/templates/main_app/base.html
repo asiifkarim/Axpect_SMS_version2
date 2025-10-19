@@ -249,7 +249,7 @@
     <!-- jQuery Knob Chart -->
     <script src="{% static 'plugins/jquery-knob/jquery.knob.min.js'%} "></script>
     <!-- daterangepicker -->
-    <!-- <script src="{% static 'plugins/moment/moment.min.js'%} "></script> -->
+    <script src="{% static 'plugins/moment/moment.min.js'%}?v=2"></script>
     <!-- <script src="{% static 'plugins/daterangepicker/daterangepicker.js'%} "></script> -->
     <!-- Tempusdominus Bootstrap 4 -->
     <script src="{% static 'plugins/tempusdominus-bootstrap-4/js/tempusdominus-bootstrap-4.min.js'%} "></script>
@@ -294,7 +294,7 @@
     </script>
     
     <!-- Enhanced Notification System -->
-    <script src="{% static 'js/notifications.js' %}"></script>
+    <script src="{% static 'js/notifications.js' %}?v=2"></script>
     
     <!-- Job Card Assignment System -->
     <script src="{% static 'js/job_card_assignment.js' %}"></script>
@@ -307,6 +307,117 @@
     {% if user.is_authenticated %}
         {% include "ai/floating_chatbot.html" %}
     {% endif %}
+    
+    <!-- WebSocket Notification Sound Handler -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize WebSocket connection for real-time notifications
+        if (typeof WebSocket !== 'undefined' && window.notificationManager) {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/social/notifications/`;
+            
+            try {
+                const notificationSocket = new WebSocket(wsUrl);
+                
+                notificationSocket.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        
+                        if (data.type === 'notification' && data.sound_type) {
+                            // Play notification sound based on type
+                            window.notificationManager.playNotificationSound(data.sound_type);
+                            
+                            // Show notification if message is provided
+                            if (data.notification && data.notification.message) {
+                                window.notificationManager.show(
+                                    data.notification.message,
+                                    'info',
+                                    data.notification.title || 'Notification'
+                                );
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('Error parsing WebSocket message:', error);
+                        console.warn('Raw message:', event.data);
+                    }
+                };
+                
+                notificationSocket.onopen = function(event) {
+                    console.log('Notification WebSocket connected successfully');
+                };
+                
+                notificationSocket.onclose = function(event) {
+                    console.log('Notification WebSocket connection closed');
+                    // Attempt to reconnect after 5 seconds
+                    setTimeout(function() {
+                        if (window.notificationSocket && window.notificationSocket.readyState === WebSocket.CLOSED) {
+                            console.log('Attempting to reconnect WebSocket...');
+                            window.notificationSocket = new WebSocket(wsUrl);
+                        }
+                    }, 5000);
+                };
+                
+                notificationSocket.onerror = function(error) {
+                    console.warn('WebSocket notification connection error:', error);
+                };
+                
+                // Store socket reference for cleanup
+                window.notificationSocket = notificationSocket;
+                
+            } catch (error) {
+                console.warn('Failed to initialize notification WebSocket:', error);
+                // Fallback to polling for notifications
+                console.log('Falling back to polling for notifications');
+                setInterval(function() {
+                    if (window.notificationManager) {
+                        // Check for pending notifications via AJAX
+                        fetch('/api/notifications/pending/', {
+                            method: 'GET',
+                            headers: {
+                                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.notifications && data.notifications.length > 0) {
+                                data.notifications.forEach(notification => {
+                                    window.notificationManager.show(
+                                        notification.message,
+                                        'info',
+                                        notification.title || 'Notification'
+                                    );
+                                });
+                            }
+                        })
+                        .catch(error => console.warn('Polling notification error:', error));
+                    }
+                }, 30000); // Poll every 30 seconds
+            }
+        }
+        
+        // Handle chat message sounds
+        if (typeof WebSocket !== 'undefined' && window.notificationManager) {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            // Note: Chat WebSocket requires group_id, so we'll handle this in chat-specific pages
+            // For now, we'll just set up the notification WebSocket
+            
+            try {
+                // Chat WebSocket will be initialized per chat room
+                console.log('Chat WebSocket will be initialized per chat room');
+                
+            } catch (error) {
+                console.warn('Chat WebSocket setup note:', error);
+            }
+        }
+    });
+    
+    // Cleanup WebSocket connections on page unload
+    window.addEventListener('beforeunload', function() {
+        if (window.notificationSocket) {
+            window.notificationSocket.close();
+        }
+    });
+    </script>
 </body>
 
 </html>

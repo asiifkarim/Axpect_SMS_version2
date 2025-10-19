@@ -83,7 +83,7 @@ def chat_room(request, group_id):
     # Get messages with pagination
     messages_list = group.messages.filter(is_deleted=False).select_related(
         'sender', 'reply_to__sender'
-    ).prefetch_related('reactions__user')
+    ).prefetch_related('reactions__user').order_by('created_at').order_by('created_at')
     
     paginator = Paginator(messages_list, 50)
     page_number = request.GET.get('page', 1)
@@ -226,7 +226,7 @@ def api_chat_messages(request, group_id):
     
     messages_list = group.messages.filter(is_deleted=False).select_related(
         'sender', 'reply_to__sender'
-    ).prefetch_related('reactions__user')
+    ).prefetch_related('reactions__user').order_by('created_at')
     
     paginator = Paginator(messages_list, page_size)
     page_messages = paginator.get_page(page)
@@ -337,66 +337,87 @@ def api_send_message(request, group_id):
     }, status=status.HTTP_201_CREATED)
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@login_required
+@csrf_exempt
+@require_POST
 def api_create_group(request):
     """Create a new custom chat group"""
-    name = request.data.get('name', '').strip()
-    description = request.data.get('description', '').strip()
-    member_ids = request.data.get('member_ids', [])
-    
-    if not name:
-        return Response(
-            {'error': 'Group name is required'}, 
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    # Create group
-    group = ChatGroup.objects.create(
-        name=name,
-        group_type='CUSTOM',
-        description=description,
-        created_by=request.user,
-        is_active=True,
-        allow_file_sharing=True
-    )
-    
-    # Add creator as admin
-    ChatGroupMember.objects.create(
-        group=group,
-        user=request.user,
-        role='ADMIN',
-        is_active=True
-    )
-    
-    # Add other members
-    for member_id in member_ids:
-        try:
-            user = CustomUser.objects.get(id=member_id)
-            ChatGroupMember.objects.create(
-                group=group,
-                user=user,
-                role='MEMBER',
-                is_active=True
+    try:
+        # Handle both JSON and form data
+        if request.content_type == 'application/json':
+            data = json.loads(request.body)
+        else:
+            data = request.POST
+            
+        name = data.get('name', '').strip()
+        description = data.get('description', '').strip()
+        member_ids = data.get('member_ids', [])
+        
+        if not name:
+            return JsonResponse(
+                {'error': 'Group name is required'}, 
+                status=400
             )
-        except CustomUser.DoesNotExist:
-            continue
-    
-    return Response({
-        'group_id': group.id,
-        'name': group.name,
-        'member_count': group.member_count
-    }, status=status.HTTP_201_CREATED)
+        
+        # Create group
+        group = ChatGroup.objects.create(
+            name=name,
+            group_type='CUSTOM',
+            description=description,
+            created_by=request.user,
+            is_active=True,
+            allow_file_sharing=True
+        )
+        
+        # Add creator as admin
+        ChatGroupMember.objects.create(
+            group=group,
+            user=request.user,
+            role='ADMIN',
+            is_active=True
+        )
+        
+        # Add other members
+        for member_id in member_ids:
+            try:
+                member_id = int(member_id)  # Convert to int
+                user = CustomUser.objects.get(id=member_id)
+                ChatGroupMember.objects.create(
+                    group=group,
+                    user=user,
+                    role='MEMBER',
+                    is_active=True
+                )
+            except (ValueError, TypeError, CustomUser.DoesNotExist):
+                continue
+        
+        return JsonResponse({
+            'group_id': group.id,
+            'name': group.name,
+            'member_count': group.members.filter(is_active=True).count(),
+            'redirect_url': reverse('social:chat_room', args=[group.id])
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {'error': 'Invalid JSON data'}, 
+            status=400
+        )
+    except Exception as e:
+        logger.error(f"Error creating group: {str(e)}")
+        return JsonResponse(
+            {'error': 'Failed to create group'}, 
+            status=500
+        )
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@login_required
 def api_search_users(request):
     """Search for users to add to groups or start DMs"""
     query = request.GET.get('q', '').strip()
     
     if len(query) < 2:
-        return Response({'users': []})
+        return JsonResponse({'users': []})
     
     # Search users by name or email
     users = CustomUser.objects.filter(
@@ -416,37 +437,80 @@ def api_search_users(request):
             'is_online': user.is_online
         })
     
-    return Response({'users': users_data})
+    return JsonResponse({'users': users_data})
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@login_required
+@csrf_exempt
+@require_POST
 def api_start_direct_message(request):
     """Start a direct message with another user"""
-    target_user_id = request.data.get('user_id')
-    
-    if not target_user_id:
-        return Response(
-            {'error': 'User ID is required'}, 
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
     try:
-        target_user = CustomUser.objects.get(id=target_user_id)
-    except CustomUser.DoesNotExist:
-        return Response(
-            {'error': 'User not found'}, 
-            status=status.HTTP_404_NOT_FOUND
+        # Debug logging
+        logger.info(f"DM Start Request - Content-Type: {request.content_type}")
+        logger.info(f"DM Start Request - POST data: {dict(request.POST)}")
+        logger.info(f"DM Start Request - Body: {request.body}")
+        
+        # Handle both JSON and form data
+        if request.content_type == 'application/json':
+            data = json.loads(request.body)
+        else:
+            data = request.POST
+        
+        target_user_id = data.get('user_id')
+        
+        logger.info(f"DM Start - Extracted user_id: {target_user_id}")
+        
+        if not target_user_id:
+            logger.warning("DM Start - No user_id provided")
+            return JsonResponse(
+                {'error': 'User ID is required'}, 
+                status=400
+            )
+        
+        # Convert to int if it's a string
+        try:
+            target_user_id = int(target_user_id)
+            logger.info(f"DM Start - Converted user_id to int: {target_user_id}")
+        except (ValueError, TypeError) as e:
+            logger.error(f"DM Start - Invalid user_id format: {target_user_id}, error: {str(e)}")
+            return JsonResponse(
+                {'error': 'Invalid user ID format'}, 
+                status=400
+            )
+        
+        try:
+            target_user = CustomUser.objects.get(id=target_user_id)
+            logger.info(f"DM Start - Found target user: {target_user.email}")
+        except CustomUser.DoesNotExist:
+            logger.error(f"DM Start - User not found with ID: {target_user_id}")
+            return JsonResponse(
+                {'error': 'User not found'}, 
+                status=404
+            )
+        
+        # Create or get existing DM group
+        group = create_direct_message_group(request.user, target_user)
+        logger.info(f"DM Start - Created/found group: {group.id}")
+        
+        return JsonResponse({
+            'group_id': group.id,
+            'group_name': group.name,
+            'redirect_url': reverse('social:chat_room', args=[group.id])
+        })
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"DM Start - JSON decode error: {str(e)}")
+        return JsonResponse(
+            {'error': 'Invalid JSON data'}, 
+            status=400
         )
-    
-    # Create or get existing DM group
-    group = create_direct_message_group(request.user, target_user)
-    
-    return Response({
-        'group_id': group.id,
-        'group_name': group.name,
-        'redirect_url': reverse('social:chat_room', args=[group.id])
-    })
+    except Exception as e:
+        logger.error(f"Error starting direct message: {str(e)}")
+        return JsonResponse(
+            {'error': 'Failed to start conversation'}, 
+            status=500
+        )
 
 
 # ==============================================

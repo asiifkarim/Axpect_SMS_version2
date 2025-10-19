@@ -129,7 +129,7 @@
                                     <!-- For DM, show other user's avatar -->
                                     {% for member in item.group.members.all %}
                                         {% if member.user != request.user %}
-                                            <img src="{{ member.user.profile_pic.url|default:'/static/dist/img/user-default.png' }}" 
+                                            <img src="{{ member.user.profile_pic.url|default:'/static/dist/img/default-150x150.png' }}" 
                                                  alt="Avatar" class="chat-avatar">
                                             {% if member.user.is_online %}
                                                 <span class="online-indicator"></span>
@@ -314,6 +314,7 @@
 {% endblock %}
 
 {% block custom_js %}
+{% csrf_token %}
 <script>
 $(document).ready(function() {
     // Chat item click handler
@@ -357,7 +358,7 @@ $(document).ready(function() {
                         html += `
                             <div class="user-result p-2 border rounded mb-2" style="cursor: pointer;" data-user-id="${user.id}">
                                 <div class="d-flex align-items-center">
-                                    <img src="${user.profile_pic || '/static/dist/img/user-default.png'}" 
+                                    <img src="${user.profile_pic || '/static/dist/img/default-150x150.png'}" 
                                          class="rounded-circle mr-2" width="40" height="40">
                                     <div>
                                         <div class="font-weight-bold">${user.name}</div>
@@ -380,7 +381,18 @@ $(document).ready(function() {
     $(document).on('click', '.user-result', function() {
         const userId = $(this).data('user-id');
         
-        $.post('/social/api/dm/start/', { user_id: userId })
+        $.ajaxSetup({
+            beforeSend: function(xhr, settings) {
+                if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                    xhr.setRequestHeader("X-CSRFToken", $('[name=csrfmiddlewaretoken]').val());
+                }
+            }
+        });
+        
+        $.post('/social/api/dm/start/', { 
+            user_id: userId,
+            csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+        })
             .done(function(data) {
                 window.location.href = data.redirect_url;
             })
@@ -409,7 +421,7 @@ $(document).ready(function() {
                         html += `
                             <div class="member-result p-2 border rounded mb-1" style="cursor: pointer;" data-user-id="${user.id}" data-user-name="${user.name}">
                                 <div class="d-flex align-items-center">
-                                    <img src="${user.profile_pic || '/static/dist/img/user-default.png'}" 
+                                    <img src="${user.profile_pic || '/static/dist/img/default-150x150.png'}" 
                                          class="rounded-circle mr-2" width="30" height="30">
                                     <span>${user.name}</span>
                                 </div>
@@ -464,13 +476,26 @@ $(document).ready(function() {
         
         const memberIds = selectedMembers.map(m => m.id);
         
+        $.ajaxSetup({
+            beforeSend: function(xhr, settings) {
+                if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                    xhr.setRequestHeader("X-CSRFToken", $('[name=csrfmiddlewaretoken]').val());
+                }
+            }
+        });
+        
         $.post('/social/api/groups/create/', {
             name: name,
             description: description,
-            member_ids: memberIds
+            member_ids: memberIds,
+            csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
         })
         .done(function(data) {
-            location.reload();
+            if (data.redirect_url) {
+                window.location.href = data.redirect_url;
+            } else {
+                location.reload();
+            }
         })
         .fail(function(xhr) {
             const error = xhr.responseJSON?.error || 'Failed to create group';

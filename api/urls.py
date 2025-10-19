@@ -42,6 +42,7 @@ urlpatterns = [
     # Enhanced Notifications & Job Card Assignment
     path('notifications/pending/', notification_views.pending_notifications, name='api_pending_notifications'),
     path('notifications/send/', notification_views.send_notification, name='api_send_notification'),
+    path('notifications/mark-read/', notification_views.mark_notification_read, name='api_mark_notification_read'),
     path('jobcard/assign/', notification_views.assign_job_card, name='api_assign_job_card'),
     path('jobcard/<int:job_card_id>/details/', notification_views.job_card_details, name='api_job_card_details'),
     path('jobcard/<int:job_card_id>/status/', notification_views.update_job_card_status, name='api_update_job_card_status'),

@@ -25,11 +25,19 @@ def pending_notifications(request):
     try:
         notifications = []
         
-        if request.user.user_type == '2':  # Manager
+        # Handle admin users (user_type == '1')
+        if request.user.user_type == '1':  # Admin/CEO
+            # Admins can see notifications from all sources
+            # For now, we'll return empty notifications for admin
+            # This can be enhanced to show system-wide notifications
+            pass
+            
+        elif request.user.user_type == '2':  # Manager
             try:
                 manager = Manager.objects.get(admin=request.user)
                 manager_notifications = NotificationManager.objects.filter(
                     manager=manager,
+                    is_read=False,
                     created_at__gte=timezone.now() - timezone.timedelta(hours=24)
                 ).order_by('-created_at')[:10]
                 
@@ -50,6 +58,7 @@ def pending_notifications(request):
                 employee = Employee.objects.get(admin=request.user)
                 employee_notifications = NotificationEmployee.objects.filter(
                     employee=employee,
+                    is_read=False,
                     created_at__gte=timezone.now() - timezone.timedelta(hours=24)
                 ).order_by('-created_at')[:10]
                 
@@ -66,28 +75,34 @@ def pending_notifications(request):
                 pass
         
         # Check for recent job card assignments
-        recent_assignments = JobCard.objects.filter(
-            assigned_to__admin=request.user,
-            created_at__gte=timezone.now() - timezone.timedelta(hours=1)
-        ).select_related('assigned_by', 'customer')
-        
-        for job_card in recent_assignments:
-            notifications.append({
-                'id': f'job_{job_card.id}',
-                'type': 'job_assignment',
-                'title': 'New Job Assignment',
-                'message': f'You have been assigned Job Card #{job_card.job_card_number}',
-                'job_card': {
-                    'id': job_card.id,
-                    'number': job_card.job_card_number,
-                    'type': job_card.type,
-                    'priority': job_card.priority,
-                    'due_date': job_card.due_date.isoformat() if job_card.due_date else None
-                },
-                'assigned_by': job_card.assigned_by.get_full_name() if job_card.assigned_by else 'System',
-                'created_at': job_card.created_at.isoformat(),
-                'level': 'success'
-            })
+        try:
+            recent_assignments = JobCard.objects.filter(
+                assigned_to__admin=request.user,
+                created_date__gte=timezone.now() - timezone.timedelta(hours=1)
+            ).select_related('assigned_by', 'customer')
+            
+            for job_card in recent_assignments:
+                notifications.append({
+                    'id': f'job_{job_card.id}',
+                    'type': 'job_assignment',
+                    'title': 'New Job Assignment',
+                    'message': f'You have been assigned Job Card #{job_card.job_card_number}',
+                    'job_card': {
+                        'id': job_card.id,
+                        'number': job_card.job_card_number,
+                        'type': job_card.type,
+                        'priority': job_card.priority,
+                        'due_date': job_card.due_date.isoformat() if job_card.due_date else None
+                    },
+                    'assigned_by': job_card.assigned_by.get_full_name() if job_card.assigned_by else 'System',
+                    'created_at': job_card.created_date.isoformat(),
+                    'level': 'success'
+                })
+        except Exception as e:
+            # Log the error but don't fail the entire request
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Error fetching job card assignments: {str(e)}")
         
         return JsonResponse({
             'success': True,
@@ -446,6 +461,76 @@ def job_card_updates(request):
             'count': len(updates)
         })
         
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def mark_notification_read(request):
+    """Mark a notification as read"""
+    try:
+        data = json.loads(request.body)
+        notification_id = data.get('notification_id')
+        notification_type = data.get('type', 'general')  # general, manager, employee
+        
+        if not notification_id:
+            return JsonResponse({
+                'success': False,
+                'error': 'Notification ID is required'
+            }, status=400)
+        
+        # Mark notification as read based on user type
+        if request.user.user_type == '2':  # Manager
+            try:
+                manager = Manager.objects.get(admin=request.user)
+                notification = NotificationManager.objects.get(
+                    id=notification_id,
+                    manager=manager
+                )
+                notification.is_read = True
+                notification.read_at = timezone.now()
+                notification.save()
+            except (Manager.DoesNotExist, NotificationManager.DoesNotExist):
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Notification not found'
+                }, status=404)
+                
+        elif request.user.user_type == '3':  # Employee
+            try:
+                employee = Employee.objects.get(admin=request.user)
+                notification = NotificationEmployee.objects.get(
+                    id=notification_id,
+                    employee=employee
+                )
+                notification.is_read = True
+                notification.read_at = timezone.now()
+                notification.save()
+            except (Employee.DoesNotExist, NotificationEmployee.DoesNotExist):
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Notification not found'
+                }, status=404)
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid user type'
+            }, status=400)
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Notification marked as read'
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
     except Exception as e:
         return JsonResponse({
             'success': False,

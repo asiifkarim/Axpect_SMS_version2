@@ -191,7 +191,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             logger.info(f"Sending chat message to WebSocket: {event['message']['id']}")
             await self.send(text_data=json.dumps({
                 'type': 'chat_message',
-                'message': event['message']
+                'message': event['message'],
+                'sound_type': 'message'  # Add sound trigger for new messages
             }))
             logger.info(f"Chat message sent successfully to WebSocket")
         except Exception as e:
@@ -434,7 +435,8 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         """Send notification to WebSocket"""
         await self.send(text_data=json.dumps({
             'type': 'notification',
-            'notification': event['notification']
+            'notification': event['notification'],
+            'sound_type': event.get('sound_type', 'default')  # Add sound trigger
         }))
     
     @database_sync_to_async

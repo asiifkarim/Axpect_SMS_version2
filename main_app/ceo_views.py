@@ -651,6 +651,7 @@ def admin_notify_employee(request):
 def send_employee_notification(request):
     id = request.POST.get('id')
     message = request.POST.get('message')
+    notification_type = request.POST.get('type', 'general')
     employee = get_object_or_404(Employee, admin_id=id)
     try:
         url = "https://fcm.googleapis.com/fcm/send"
@@ -660,6 +661,10 @@ def send_employee_notification(request):
                 'body': message,
                 'click_action': reverse('employee_view_notification'),
                 'icon': static('dist/img/AdminLTELogo.png')
+            },
+            'data': {
+                'sound_type': notification_type,  # Add sound trigger
+                'notification_type': notification_type
             },
             'to': employee.admin.fcm_token
         }
@@ -678,6 +683,7 @@ def send_employee_notification(request):
 def send_manager_notification(request):
     id = request.POST.get('id')
     message = request.POST.get('message')
+    notification_type = request.POST.get('type', 'general')
     manager = get_object_or_404(Manager, admin_id=id)
     try:
         url = "https://fcm.googleapis.com/fcm/send"
@@ -687,6 +693,10 @@ def send_manager_notification(request):
                 'body': message,
                 'click_action': reverse('manager_view_notification'),
                 'icon': static('dist/img/AdminLTELogo.png')
+            },
+            'data': {
+                'sound_type': notification_type,  # Add sound trigger
+                'notification_type': notification_type
             },
             'to': manager.admin.fcm_token
         }

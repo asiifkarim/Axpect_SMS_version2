@@ -4,6 +4,7 @@
 *.swp
 *.swo
 *~
+.sublime-*
 
 # Python
 __pycache__/
@@ -38,21 +39,27 @@ env.bak/
 venv.bak/
 venv*/
 env*/
+.conda/
 
 # Database
 db.sqlite3
 *.db
 *.sqlite3
+*.sqlite
 
 # Media and static files
 media/
 staticfiles/
 static/admin/
+static/collected/
+static/dist/
+static/plugins/
 
 # Logs
 *.log
 logs/
 *.log.*
+log/
 
 # OS generated files
 .DS_Store
@@ -62,10 +69,14 @@ logs/
 .Trashes
 ehthumbs.db
 Thumbs.db
+desktop.ini
 
 # Node modules
 node_modules/
 frontend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Test files and coverage
 .coverage
@@ -76,8 +87,10 @@ htmlcov/
 coverage.xml
 *.cover
 .hypothesis/
+.pytest_cache/
+test-results/
 
-# Documentation and reports
+# Documentation and reports (keep only README.md)
 *.md
 !README.md
 FEATURE_MAPPING_REPORT.md
@@ -85,36 +98,55 @@ IMPLEMENTATION_REPORT.md
 PRODUCTION_DEPLOYMENT_GUIDE.md
 PROJECT_DOCUMENTATION.md
 plan.md
+SETUP_INSTRUCTIONS.md
+SETUP_GUIDE.md
+DEPLOYMENT_GUIDE.md
+API_DOCUMENTATION.md
+USER_MANUAL.md
 
 # Migration files (keep only initial)
 main_app/migrations/*
 !main_app/migrations/__init__.py
 !main_app/migrations/0001_initial.py
+api/migrations/*
+!api/migrations/__init__.py
+social/migrations/*
+!social/migrations/__init__.py
+ai/migrations/*
+!ai/migrations/__init__.py
 
 # Celery
 celerybeat-schedule
 celerybeat.pid
+celerybeat-schedule.db
 
 # Redis
 dump.rdb
+*.rdb
 
 # Docker
 .dockerignore
+docker-compose.override.yml
 
 # Temporary files
 *.tmp
 *.temp
 *.bak
 *.backup
+*.swp
+*.swo
+*~
 
 # Environment specific
 .env.local
 .env.development
 .env.test
 .env.production
+.env.staging
 
 # Jupyter Notebook
 .ipynb_checkpoints
+*.ipynb
 
 # pyenv
 .python-version
@@ -129,3 +161,36 @@ __pypackages__/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# Security and secrets
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+.secrets/
+
+# Backup files
+*.orig
+*.rej
+
+# IDE specific
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/dictionaries
+.idea/shelf
+
+# System files
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Application specific
+uploads/
+downloads/
+cache/
+sessions/

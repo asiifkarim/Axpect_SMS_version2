@@ -31,11 +31,12 @@ A comprehensive Django-based staff management system with **AI-powered chatbot**
 - **Predictive Analytics**: AI identifies patterns in business data
 
 ### 🔄 Real-time Features
-- **WebSocket Communications**: Instant messaging and notifications
+- **WebSocket Communications**: Instant messaging and notifications with read tracking
 - **Live GPS Tracking**: Real-time employee location monitoring
-- **Social Features**: Internal communication and collaboration
+- **Social Features**: Internal communication and collaboration with persistent chat
 - **Google Drive Integration**: Document and media sharing capabilities
 - **Communication Logs**: Track all customer interactions
+- **Smart Notifications**: Context-aware notifications with sound alerts and dismissal tracking
 
 ### 🎯 Management Features
 - **CEO Dashboard**: Comprehensive business overview
@@ -94,8 +95,8 @@ python manage.py migrate
 # Create superuser
 python manage.py createsuperuser
 
-# Run development server
-python manage.py runserver
+# Run development server with WebSocket support
+daphne -b 127.0.0.1 -p 8000 axpect_tech_config.asgi:application
 ```
 
 ### Production Deployment
@@ -170,6 +171,21 @@ docker-compose -f docker-compose.prod.yml up -d
 
 🎯 AI Confidence: 85%
 ```
+
+## 🔧 Recent Updates & Fixes
+
+### ✅ Messaging & Notification System (Latest)
+- **Fixed Chat Persistence**: Messages now properly persist and display to all recipients
+- **Smart Notifications**: Implemented read tracking to prevent notification spam
+- **Improved UI**: Compact toast notifications with working "View Details" links
+- **WebSocket Optimization**: Enhanced real-time communication with proper error handling
+- **Sound Alerts**: Context-aware notification sounds for different event types
+
+### 🛠️ Technical Improvements
+- **Database Schema**: Added `is_read` and `read_at` fields to notification models
+- **API Enhancements**: New `/api/notifications/mark-read/` endpoint for notification management
+- **Frontend Logic**: Session-based notification tracking to prevent re-display
+- **Performance**: Optimized message ordering and WebSocket message broadcasting
 
 ## 🔧 Configuration
 
