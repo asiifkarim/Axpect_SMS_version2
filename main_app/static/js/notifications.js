@@ -192,6 +192,46 @@ class NotificationManager {
                 .job-assignment-notification .toast-close:hover {
                     color: white;
                 }
+                
+                /* Direct Message Notification Styles */
+                .direct-message-notification {
+                    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+                    color: white;
+                    border-left: none;
+                }
+                
+                .direct-message-notification .toast-title,
+                .direct-message-notification .toast-body {
+                    color: white;
+                }
+                
+                .direct-message-notification .toast-close {
+                    color: rgba(255,255,255,0.8);
+                }
+                
+                .direct-message-notification .toast-close:hover {
+                    color: white;
+                }
+                
+                /* Chat Notification Styles */
+                .chat-notification {
+                    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+                    color: white;
+                    border-left: none;
+                }
+                
+                .chat-notification .toast-title,
+                .chat-notification .toast-body {
+                    color: white;
+                }
+                
+                .chat-notification .toast-close {
+                    color: rgba(255,255,255,0.8);
+                }
+                
+                .chat-notification .toast-close:hover {
+                    color: white;
+                }
             </style>
         `;
         document.body.appendChild(this.container);
@@ -395,6 +435,19 @@ class NotificationManager {
                 break;
             case 'new_message':
                 this.show(data.message, 'info', 'New Message');
+                notificationShown = true;
+                break;
+            case 'direct_message':
+                this.show(data.notification.message, 'info', data.notification.title, 7000, {
+                    className: 'direct-message-notification',
+                    actions: [{
+                        text: 'View Message',
+                        className: 'btn-light btn-sm',
+                        handler: () => {
+                            window.location.href = `/social/chat/${data.notification.group_id}/`;
+                        }
+                    }]
+                });
                 notificationShown = true;
                 break;
             default:
@@ -745,7 +798,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     alert.classList.contains('alert-danger') ? 'error' :
                     alert.classList.contains('alert-warning') ? 'warning' : 'info';
         
-        notificationManager.show(alert.textContent.trim(), type);
+        const messageType = alert.getAttribute('data-message-type');
+        const redirectUrl = alert.getAttribute('data-redirect-url');
+        
+        // Create options for clickable notifications
+        let options = {};
+        if (messageType === 'chat' && redirectUrl) {
+            options = {
+                className: 'chat-notification',
+                actions: [{
+                    text: 'View Message',
+                    className: 'btn-light btn-sm',
+                    handler: () => {
+                        window.location.href = redirectUrl;
+                    }
+                }]
+            };
+        }
+        
+        notificationManager.show(alert.textContent.trim(), type, null, 7000, options);
         alert.style.display = 'none'; // Hide the original Django message
     });
 });

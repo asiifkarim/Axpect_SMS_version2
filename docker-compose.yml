@@ -7,7 +7,7 @@ services:
       - "8000:8000"
     environment:
       - DEBUG=False
-      - DATABASE_URL=postgres://axpect_user:axpect_pass@db:5432/axpect_sms
+      - DATABASE_URL=postgres://axpect_user:${POSTGRES_PASSWORD:-axpect_pass}@db:5432/axpect_sms
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
@@ -45,7 +45,7 @@ services:
     command: celery -A axpect_tech_config worker -l info
     environment:
       - DEBUG=False
-      - DATABASE_URL=postgres://axpect_user:axpect_pass@db:5432/axpect_sms
+      - DATABASE_URL=postgres://axpect_user:${POSTGRES_PASSWORD:-axpect_pass}@db:5432/axpect_sms
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
     depends_on:
@@ -60,7 +60,7 @@ services:
     command: celery -A axpect_tech_config beat -l info
     environment:
       - DEBUG=False
-      - DATABASE_URL=postgres://axpect_user:axpect_pass@db:5432/axpect_sms
+      - DATABASE_URL=postgres://axpect_user:${POSTGRES_PASSWORD:-axpect_pass}@db:5432/axpect_sms
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
     depends_on:

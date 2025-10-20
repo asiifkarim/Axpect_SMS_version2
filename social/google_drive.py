@@ -79,27 +79,46 @@ class GoogleDriveService:
     def get_authorization_url(self, user, request):
         """Get Google OAuth authorization URL"""
         try:
+            # Use the exact redirect URI from Google Cloud Console configuration
+            # Ensure we use the correct host and port
+            if request and hasattr(request, 'META'):
+                host = request.META.get('HTTP_HOST', '127.0.0.1:8000')
+                # Clean up any duplicate host information
+                if '127.0.0.1' in host and '8000' in host:
+                    redirect_uri = "http://127.0.0.1:8000/social/drive/callback/"
+                else:
+                    redirect_uri = f"http://{host}/social/drive/callback/"
+            else:
+                redirect_uri = "http://127.0.0.1:8000/social/drive/callback/"
+            
+            # Create the OAuth flow with exact client configuration
             flow = Flow.from_client_config(
                 {
                     "web": {
-                        "client_id": os.environ.get('GOOGLE_OAUTH_CLIENT_ID'),
-                        "client_secret": os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET'),
+                        "client_id": settings.GOOGLE_OAUTH_CLIENT_ID,
+                        "client_secret": settings.GOOGLE_OAUTH_CLIENT_SECRET,
                         "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                         "token_uri": "https://oauth2.googleapis.com/token",
-                        "redirect_uris": [request.build_absolute_uri(reverse('social:google_drive_callback'))]
+                        "redirect_uris": [
+                            "http://127.0.0.1:8000/social/drive/callback/",
+                            "http://localhost:8000/social/drive/callback/"
+                        ]
                     }
                 },
-                scopes=SCOPES
+                scopes=SCOPES,
+                redirect_uri=redirect_uri
             )
-            
-            flow.redirect_uri = request.build_absolute_uri(reverse('social:google_drive_callback'))
             
             authorization_url, state = flow.authorization_url(
                 access_type='offline',
                 include_granted_scopes='true',
-                state=str(user.id)  # Include user ID in state for security
+                state=str(user.id),  # Include user ID in state for security
+                prompt='consent'  # Force consent screen to get refresh token
             )
             
+            logger.info(f"Generated OAuth URL for user {user.id}: {authorization_url}")
+            logger.info(f"Redirect URI used: {redirect_uri}")
+            logger.info(f"Client ID: {settings.GOOGLE_OAUTH_CLIENT_ID}")
             return authorization_url, state
             
         except Exception as e:
@@ -111,25 +130,37 @@ class GoogleDriveService:
         try:
             code = request.GET.get('code')
             state = request.GET.get('state')
+            error = request.GET.get('error')
+            
+            if error:
+                logger.error(f"OAuth error: {error}")
+                return None
             
             if not code or str(user.id) != state:
+                logger.error(f"Invalid OAuth callback parameters. Code: {bool(code)}, State: {state}, User ID: {user.id}")
                 raise ValueError("Invalid OAuth callback parameters")
+            
+            # Use the exact redirect URI from Google Cloud Console configuration
+            redirect_uri = "http://127.0.0.1:8000/social/drive/callback/"
             
             flow = Flow.from_client_config(
                 {
                     "web": {
-                        "client_id": os.environ.get('GOOGLE_OAUTH_CLIENT_ID'),
-                        "client_secret": os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET'),
+                        "client_id": settings.GOOGLE_OAUTH_CLIENT_ID,
+                        "client_secret": settings.GOOGLE_OAUTH_CLIENT_SECRET,
                         "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                         "token_uri": "https://oauth2.googleapis.com/token",
-                        "redirect_uris": [request.build_absolute_uri(reverse('social:google_drive_callback'))]
+                        "redirect_uris": [
+                            "http://127.0.0.1:8000/social/drive/callback/",
+                            "http://localhost:8000/social/drive/callback/"
+                        ]
                     }
                 },
                 scopes=SCOPES,
-                state=state
+                state=state,
+                redirect_uri=redirect_uri
             )
             
-            flow.redirect_uri = request.build_absolute_uri(reverse('social:google_drive_callback'))
             flow.fetch_token(code=code)
             
             credentials = flow.credentials
@@ -168,6 +199,7 @@ class GoogleDriveService:
                 user_agent=request.META.get('HTTP_USER_AGENT')
             )
             
+            logger.info(f"Successfully connected Google Drive for user {user.id}: {user_info.get('email')}")
             return integration
             
         except Exception as e:
@@ -191,8 +223,8 @@ class GoogleDriveService:
                 token=self._decrypt_token(integration.access_token),
                 refresh_token=self._decrypt_token(integration.refresh_token) if integration.refresh_token else None,
                 token_uri="https://oauth2.googleapis.com/token",
-                client_id=os.environ.get('GOOGLE_OAUTH_CLIENT_ID'),
-                client_secret=os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET'),
+                client_id=settings.GOOGLE_OAUTH_CLIENT_ID,
+                client_secret=settings.GOOGLE_OAUTH_CLIENT_SECRET,
                 scopes=SCOPES
             )
             

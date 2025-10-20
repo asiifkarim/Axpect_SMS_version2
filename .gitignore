@@ -5,6 +5,9 @@
 *.swo
 *~
 .sublime-*
+.sublime-project
+.sublime-workspace
+*.sublime-*
 
 # Python
 __pycache__/
@@ -29,6 +32,13 @@ wheels/
 *.egg
 MANIFEST
 
+# Python environments
+.conda/
+.pipenv/
+pipenv/
+.pip/
+pip/
+
 # Virtual environments
 .env
 .venv
@@ -41,11 +51,12 @@ venv*/
 env*/
 .conda/
 
-# Database
+# Database files
 db.sqlite3
 *.db
 *.sqlite3
 *.sqlite
+*.sql
 
 # Media and static files
 media/
@@ -54,12 +65,17 @@ static/admin/
 static/collected/
 static/dist/
 static/plugins/
+static/css/
+static/js/
+static/img/
 
 # Logs
 *.log
 logs/
 *.log.*
 log/
+*.out
+*.err
 
 # OS generated files
 .DS_Store
@@ -70,6 +86,39 @@ log/
 ehthumbs.db
 Thumbs.db
 desktop.ini
+*.lnk
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# macOS
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
 
 # Node modules
 node_modules/
@@ -77,6 +126,8 @@ frontend/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+package-lock.json
+yarn.lock
 
 # Test files and coverage
 .coverage
@@ -89,6 +140,9 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 test-results/
+tests/
+test_*
+*_test.py
 
 # Documentation and reports (keep only README.md)
 *.md
@@ -103,6 +157,9 @@ SETUP_GUIDE.md
 DEPLOYMENT_GUIDE.md
 API_DOCUMENTATION.md
 USER_MANUAL.md
+CHANGELOG.md
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
 
 # Migration files (keep only initial)
 main_app/migrations/*
@@ -119,14 +176,17 @@ ai/migrations/*
 celerybeat-schedule
 celerybeat.pid
 celerybeat-schedule.db
+celerybeat-schedule.*
 
 # Redis
 dump.rdb
 *.rdb
+redis-dump.rdb
 
 # Docker
 .dockerignore
 docker-compose.override.yml
+.docker/
 
 # Temporary files
 *.tmp
@@ -136,6 +196,8 @@ docker-compose.override.yml
 *.swp
 *.swo
 *~
+*.orig
+*.rej
 
 # Environment specific
 .env.local
@@ -143,16 +205,19 @@ docker-compose.override.yml
 .env.test
 .env.production
 .env.staging
+.env.example
 
 # Jupyter Notebook
 .ipynb_checkpoints
 *.ipynb
+notebooks/
 
 # pyenv
 .python-version
 
 # pipenv
 Pipfile.lock
+.pipenv/
 
 # PEP 582
 __pypackages__/
@@ -167,30 +232,138 @@ dmypy.json
 *.key
 *.crt
 *.p12
+*.pfx
 secrets/
 .secrets/
-
-# Backup files
-*.orig
-*.rej
+*.secret
+*.private
+certificates/
+keys/
+.drive_key
 
 # IDE specific
 .vscode/settings.json
 .vscode/launch.json
 .vscode/extensions.json
+.vscode/tasks.json
 .idea/workspace.xml
 .idea/tasks.xml
 .idea/dictionaries
 .idea/shelf
-
-# System files
-.fuse_hidden*
-.directory
-.Trash-*
-.nfs*
+.idea/usage.statistics.xml
+.idea/gradle.xml
+.idea/libraries
 
 # Application specific
 uploads/
 downloads/
 cache/
 sessions/
+temp/
+tmp/
+backup/
+backups/
+
+# Performance and monitoring
+*.prof
+*.profile
+*.trace
+*.heap
+*.mem
+
+# Package managers
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Distribution / packaging
+.Python
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# celery beat schedule file
+celerybeat-schedule
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/

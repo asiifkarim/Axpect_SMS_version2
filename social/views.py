@@ -537,7 +537,7 @@ def leave_group(request, group_id):
         membership.is_active = False
         membership.save()
         
-        messages.success(request, f"You have left the group '{group.name}'.")
+        messages.success(request, f"You have left the group '{group.name}'.", extra_tags='chat:redirect:/social/')
         
         # Log activity
         log_social_activity(

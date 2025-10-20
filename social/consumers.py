@@ -128,6 +128,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
             # Create delivery records for all group members
             await self.create_delivery_records(message)
             logger.info(f"Delivery records created for message {message.id}")
+            
+            # Send notification to DM recipient if this is a direct message
+            await self.send_dm_notification(message)
         else:
             logger.error(f"Failed to save message from user {self.user.id}")
     
@@ -381,11 +384,72 @@ class ChatConsumer(AsyncWebsocketConsumer):
     def update_user_status(self, is_online):
         """Update user online status"""
         try:
+            # Only update status for authenticated users
+            if isinstance(self.user, AnonymousUser):
+                return
+            
             self.user.is_online = is_online
             self.user.last_seen = timezone.now()
             self.user.save(update_fields=['is_online', 'last_seen'])
         except Exception as e:
             logger.error(f"Error updating user status: {str(e)}")
+    
+    @database_sync_to_async
+    def get_dm_recipient(self, group):
+        """Get the other user in a DM conversation"""
+        try:
+            members = ChatGroupMember.objects.filter(
+                group=group, is_active=True
+            ).exclude(user=self.user)
+            return members.first().user if members.exists() else None
+        except Exception as e:
+            logger.error(f"Error getting DM recipient: {str(e)}")
+            return None
+    
+    async def send_dm_notification(self, message):
+        """Send notification to DM recipient if they're not in the chat room"""
+        try:
+            # Get the group for this message
+            group = await self.get_group_by_id(self.group_id)
+            if not group or group.group_type != 'DIRECT':
+                return
+            
+            # Get the recipient
+            recipient = await self.get_dm_recipient(group)
+            if not recipient:
+                logger.warning(f"No recipient found for DM group {self.group_id}")
+                return
+            
+            # Send notification to recipient's notification channel
+            await self.channel_layer.group_send(
+                f'notifications_{recipient.id}',
+                {
+                    'type': 'notification_message',
+                    'notification': {
+                        'id': message.id,
+                        'type': 'direct_message',
+                        'title': f'New message from {self.user.get_full_name()}',
+                        'message': f'{self.user.get_full_name()}: {message.content[:50]}{"..." if len(message.content) > 50 else ""}',
+                        'group_id': group.id,
+                        'created_at': timezone.now().isoformat()
+                    },
+                    'sound_type': 'message'
+                }
+            )
+            logger.info(f"DM notification sent to user {recipient.id}")
+        except Exception as e:
+            logger.error(f"Error sending DM notification: {str(e)}")
+    
+    @database_sync_to_async
+    def get_group_by_id(self, group_id):
+        """Get group by ID"""
+        try:
+            return ChatGroup.objects.get(id=group_id)
+        except ChatGroup.DoesNotExist:
+            return None
+        except Exception as e:
+            logger.error(f"Error getting group by ID: {str(e)}")
+            return None
 
 
 class NotificationConsumer(AsyncWebsocketConsumer):

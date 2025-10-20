@@ -34,9 +34,10 @@ A comprehensive Django-based staff management system with **AI-powered chatbot**
 - **WebSocket Communications**: Instant messaging and notifications with read tracking
 - **Live GPS Tracking**: Real-time employee location monitoring
 - **Social Features**: Internal communication and collaboration with persistent chat
-- **Google Drive Integration**: Document and media sharing capabilities
+- **Google Drive Integration**: Document and media sharing capabilities with OAuth 2.0
 - **Communication Logs**: Track all customer interactions
 - **Smart Notifications**: Context-aware notifications with sound alerts and dismissal tracking
+- **Avatar System**: Profile pictures with fallback to default images
 
 ### 🎯 Management Features
 - **CEO Dashboard**: Comprehensive business overview
@@ -174,18 +175,21 @@ docker-compose -f docker-compose.prod.yml up -d
 
 ## 🔧 Recent Updates & Fixes
 
-### ✅ Messaging & Notification System (Latest)
-- **Fixed Chat Persistence**: Messages now properly persist and display to all recipients
-- **Smart Notifications**: Implemented read tracking to prevent notification spam
-- **Improved UI**: Compact toast notifications with working "View Details" links
+### ✅ Complete System Overhaul (Latest)
+- **Fixed Messaging System**: Complete overhaul of chat functionality with persistent messages
+- **Smart Notifications**: Read tracking, sound alerts, and clickable toast notifications
+- **Avatar System**: Fixed broken avatar images and profile picture display
+- **Google Drive Integration**: Fully functional OAuth 2.0 integration with file sharing
 - **WebSocket Optimization**: Enhanced real-time communication with proper error handling
-- **Sound Alerts**: Context-aware notification sounds for different event types
+- **UI/UX Improvements**: Compact notifications, working redirects, and better user experience
 
 ### 🛠️ Technical Improvements
 - **Database Schema**: Added `is_read` and `read_at` fields to notification models
 - **API Enhancements**: New `/api/notifications/mark-read/` endpoint for notification management
 - **Frontend Logic**: Session-based notification tracking to prevent re-display
 - **Performance**: Optimized message ordering and WebSocket message broadcasting
+- **Security**: Enhanced CSRF protection and authentication handling
+- **Error Handling**: Comprehensive error handling for WebSocket connections and API calls
 
 ## 🔧 Configuration
 
@@ -212,9 +216,9 @@ GEMINI_API_KEY=your-gemini-key
 # Monitoring
 SENTRY_DSN=https://your-sentry-dsn@sentry.io/project-id
 
-# Email
-EMAIL_ADDRESS=your-email@company.com
-EMAIL_PASSWORD=your-app-password
+# Google Drive Integration
+GOOGLE_OAUTH_CLIENT_ID=your-google-client-id
+GOOGLE_OAUTH_CLIENT_SECRET=your-google-client-secret
 ```
 
 ## 📊 Performance Benchmarks

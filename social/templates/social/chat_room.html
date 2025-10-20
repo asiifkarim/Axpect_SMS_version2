@@ -264,7 +264,7 @@
                             <div class="online-users mr-3">
                                 {% for member in group_members %}
                                     {% if member.user.is_online %}
-                                        <img src="{{ member.user.profile_pic.url|default:'/static/dist/img/user-default.png' }}" 
+                                        <img src="{{ member.user.profile_pic.url|default:'/static/dist/img/default-150x150.png' }}" 
                                              class="online-user" 
                                              title="{{ member.user.first_name }} {{ member.user.last_name }} (Online)">
                                     {% endif %}
@@ -302,7 +302,7 @@
                     {% for message in messages %}
                         <div class="message {% if message.sender == request.user %}own{% endif %}" data-message-id="{{ message.id }}">
                             {% if message.sender != request.user %}
-                                <img src="{{ message.sender.profile_pic.url|default:'/static/dist/img/user-default.png' }}" 
+                                <img src="{{ message.sender.profile_pic.url|default:'/static/dist/img/default-150x150.png' }}" 
                                      class="message-avatar">
                             {% endif %}
                             
@@ -368,7 +368,7 @@
                             </div>
                             
                             {% if message.sender == request.user %}
-                                <img src="{{ message.sender.profile_pic.url|default:'/static/dist/img/user-default.png' }}" 
+                                <img src="{{ message.sender.profile_pic.url|default:'/static/dist/img/default-150x150.png' }}" 
                                      class="message-avatar">
                             {% endif %}
                         </div>
@@ -457,7 +457,7 @@
                     {% for member in group_members %}
                         <div class="list-group-item d-flex align-items-center">
                             <div class="position-relative mr-3">
-                                <img src="{{ member.user.profile_pic.url|default:'/static/dist/img/user-default.png' }}" 
+                                <img src="{{ member.user.profile_pic.url|default:'/static/dist/img/default-150x150.png' }}" 
                                      class="rounded-circle" width="40" height="40">
                                 {% if member.user.is_online %}
                                     <span class="position-absolute" style="bottom: 0; right: 0; width: 12px; height: 12px; background: #28a745; border: 2px solid white; border-radius: 50%;"></span>
@@ -635,13 +635,29 @@ function handleTypingIndicator(data) {
     }
 }
 
+function handleUserStatus(data) {
+    // Handle user online/offline status updates
+    console.log('User status update:', data);
+    
+    // Update user status indicators if needed
+    if (data.user_id && data.is_online !== undefined) {
+        // You can add visual indicators here for user online/offline status
+        // For example, update a user list or status indicator
+        const statusElement = $(`.user-status-${data.user_id}`);
+        if (statusElement.length) {
+            statusElement.toggleClass('online', data.is_online);
+            statusElement.toggleClass('offline', !data.is_online);
+        }
+    }
+}
+
 function addMessageToChat(message) {
     const messagesContainer = $('#chatMessages');
     const isOwn = message.sender.id === {{ request.user.id }};
     
     let messageHtml = `
         <div class="message ${isOwn ? 'own' : ''}" data-message-id="${message.id}">
-            ${!isOwn ? `<img src="${message.sender.profile_pic || '/static/dist/img/user-default.png'}" class="message-avatar">` : ''}
+            ${!isOwn ? `<img src="${message.sender.profile_pic || '/static/dist/img/default-150x150.png'}" class="message-avatar">` : ''}
             
             <div class="message-content">
                 <div class="message-actions">
@@ -667,7 +683,7 @@ function addMessageToChat(message) {
                 <p class="message-text">${message.content.replace(/\n/g, '<br>')}</p>
             </div>
             
-            ${isOwn ? `<img src="${message.sender.profile_pic || '/static/dist/img/user-default.png'}" class="message-avatar">` : ''}
+            ${isOwn ? `<img src="${message.sender.profile_pic || '/static/dist/img/default-150x150.png'}" class="message-avatar">` : ''}
         </div>
     `;
     
