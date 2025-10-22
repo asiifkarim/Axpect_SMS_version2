@@ -97,7 +97,8 @@ cp .env.example .env
 
 # Database setup
 python manage.py makemigrations
-python manage.py migrate
+python manage.py makemigrations main_app
+python manage.py migrate main_app
 
 # Create superuser
 python manage.py createsuperuser
