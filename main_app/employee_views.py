@@ -122,6 +122,8 @@ def employee_view_attendance(request):
 
 
 def employee_apply_leave(request):
+    from .notification_helpers import notify_leave_application
+    
     form = LeaveReportEmployeeForm(request.POST or None)
     employee = get_object_or_404(Employee, admin_id=request.user.id)
     context = {
@@ -135,6 +137,10 @@ def employee_apply_leave(request):
                 obj = form.save(commit=False)
                 obj.employee = employee
                 obj.save()
+                
+                # Send notification to managers about new leave application
+                notify_leave_application(obj, applicant_type='employee')
+                
                 messages.success(
                     request, "Application for leave has been submitted for review")
                 return redirect(reverse('employee_apply_leave'))

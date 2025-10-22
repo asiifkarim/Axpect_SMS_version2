@@ -171,6 +171,15 @@ class NotificationEmployee(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 
+class NotificationAdmin(models.Model):
+    admin = models.ForeignKey(Admin, on_delete=models.CASCADE)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
 class EmployeeSalary(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
     department = models.ForeignKey(Department, on_delete=models.CASCADE)
@@ -567,6 +576,7 @@ class JobCard(models.Model):
     # Assignment Details
     assigned_to = models.ForeignKey('Employee', on_delete=models.SET_NULL, null=True, blank=True, help_text='Employee assigned to this job card')
     assigned_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, help_text='User who created this job card')
+    is_general_assignment = models.BooleanField(default=False, help_text='If true, this job card is assigned to all employees')
     
     # Dates
     created_date = models.DateTimeField(auto_now_add=True, help_text='When this job card was created')
@@ -646,6 +656,8 @@ class JobCard(models.Model):
     
     @property
     def assigned_to_name(self):
+        if self.is_general_assignment:
+            return "All Employees"
         try:
             if self.assigned_to and hasattr(self.assigned_to, 'admin') and self.assigned_to.admin:
                 first_name = getattr(self.assigned_to.admin, 'first_name', '')
@@ -1377,8 +1389,8 @@ class BusinessCalendar(models.Model):
     city = models.ForeignKey('City', on_delete=models.CASCADE, null=True, blank=True)
     applies_to_all = models.BooleanField(default=True)
     
-    created_at = models.DateTimeField(null=True, blank=True)
-    updated_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
     
     class Meta:
         ordering = ['date']
@@ -1408,8 +1420,8 @@ class CityWeekdayPlan(models.Model):
     start_time = models.TimeField(null=True, blank=True)
     end_time = models.TimeField(null=True, blank=True)
     
-    created_at = models.DateTimeField(null=True, blank=True)
-    updated_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
     
     class Meta:
         unique_together = ['city', 'weekday']

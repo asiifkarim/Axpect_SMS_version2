@@ -32,100 +32,139 @@ logger = logging.getLogger(__name__)
 
 @login_required
 def social_dashboard(request):
-    """Main social dashboard - messaging interface"""
-    user_groups = get_user_groups(request.user)
-    
-    # Get recent messages for each group
-    groups_with_messages = []
-    for group in user_groups:
-        latest_message = group.messages.filter(is_deleted=False).first()
-        unread_count = ChatGroupMember.objects.get(
-            group=group, user=request.user
-        ).unread_count
+    """Main social dashboard - messaging interface for all user types"""
+    try:
+        user_groups = get_user_groups(request.user)
         
-        groups_with_messages.append({
-            'group': group,
-            'latest_message': latest_message,
-            'unread_count': unread_count
-        })
-    
-    # Sort by latest message timestamp
-    groups_with_messages.sort(
-        key=lambda x: x['latest_message'].created_at if x['latest_message'] else timezone.now(),
-        reverse=True
-    )
-    
-    context = {
-        'page_title': 'Social - Messages',
-        'groups_with_messages': groups_with_messages,
-        'user_departments': Department.objects.filter(
-            employee__admin=request.user
-        ) if hasattr(request.user, 'employee') else []
-    }
-    
-    return render(request, 'social/dashboard.html', context)
+        # Get recent messages for each group
+        groups_with_messages = []
+        for group in user_groups:
+            try:
+                latest_message = group.messages.filter(is_deleted=False).first()
+                membership = ChatGroupMember.objects.filter(
+                    group=group, user=request.user
+                ).first()
+                unread_count = membership.unread_count if membership else 0
+                
+                groups_with_messages.append({
+                    'group': group,
+                    'latest_message': latest_message,
+                    'unread_count': unread_count
+                })
+            except Exception as e:
+                logger.error(f"Error processing group {group.id}: {str(e)}")
+                continue
+        
+        # Sort by latest message timestamp
+        groups_with_messages.sort(
+            key=lambda x: x['latest_message'].created_at if x['latest_message'] else timezone.now(),
+            reverse=True
+        )
+        
+        # Get user departments based on user type
+        user_departments = []
+        try:
+            if request.user.user_type == '3':  # Employee
+                user_departments = Department.objects.filter(
+                    employee__admin=request.user
+                )
+            elif request.user.user_type == '2':  # Manager
+                user_departments = Department.objects.filter(
+                    division=request.user.manager.division
+                )
+            elif request.user.user_type == '1':  # CEO/Admin
+                user_departments = Department.objects.all()
+        except Exception as e:
+            logger.error(f"Error getting departments: {str(e)}")
+        
+        context = {
+            'page_title': 'Social - Messages',
+            'groups_with_messages': groups_with_messages,
+            'user_departments': user_departments
+        }
+        
+        return render(request, 'social/dashboard.html', context)
+    except Exception as e:
+        logger.error(f"Error loading social dashboard: {str(e)}")
+        messages.error(request, "An error occurred while loading the dashboard. Please try again.")
+        return redirect('home')
 
 
 @login_required
 def chat_room(request, group_id):
-    """Individual chat room view"""
-    group = get_object_or_404(ChatGroup, id=group_id, is_active=True)
-    
-    # Check if user has access to this group
+    """Individual chat room view - accessible to all user types"""
     try:
-        membership = ChatGroupMember.objects.get(
-            group=group, user=request.user, is_active=True
-        )
-    except ChatGroupMember.DoesNotExist:
-        messages.error(request, "You don't have access to this chat group.")
+        group = get_object_or_404(ChatGroup, id=group_id, is_active=True)
+        
+        # Check if user has access to this group
+        try:
+            membership = ChatGroupMember.objects.get(
+                group=group, user=request.user, is_active=True
+            )
+        except ChatGroupMember.DoesNotExist:
+            messages.error(request, "You don't have access to this chat group.")
+            return redirect('social:dashboard')
+        
+        # Get messages with pagination
+        messages_list = group.messages.filter(is_deleted=False).select_related(
+            'sender', 'reply_to__sender'
+        ).prefetch_related('reactions__user').order_by('created_at')
+        
+        paginator = Paginator(messages_list, 50)
+        page_number = request.GET.get('page', 1)
+        page_messages = paginator.get_page(page_number)
+        
+        # Mark messages as read
+        try:
+            ChatMessageDelivery.objects.filter(
+                message__group=group,
+                user=request.user,
+                status__in=['SENT', 'DELIVERED']
+            ).update(
+                status='READ',
+                read_at=timezone.now()
+            )
+        except Exception as e:
+            logger.error(f"Error marking messages as read: {str(e)}")
+        
+        # Update last read timestamp
+        try:
+            membership.last_read_at = timezone.now()
+            membership.save(update_fields=['last_read_at'])
+        except Exception as e:
+            logger.error(f"Error updating last read timestamp: {str(e)}")
+        
+        # Get group members
+        group_members = group.members.filter(is_active=True).select_related('user')
+        
+        # Check Google Drive connection status
+        try:
+            drive_integration = request.user.drive_integration
+            is_drive_connected = drive_integration.is_active and not drive_integration.is_token_expired
+        except GoogleDriveIntegration.DoesNotExist:
+            drive_integration = None
+            is_drive_connected = False
+        except Exception as e:
+            logger.error(f"Error checking Drive integration: {str(e)}")
+            drive_integration = None
+            is_drive_connected = False
+        
+        context = {
+            'page_title': f'Chat - {group.name}',
+            'group': group,
+            'messages': page_messages,
+            'group_members': group_members,
+            'user_membership': membership,
+            'can_manage_group': membership.role in ['ADMIN', 'MODERATOR'],
+            'is_drive_connected': is_drive_connected,
+            'drive_integration': drive_integration
+        }
+        
+        return render(request, 'social/chat_room.html', context)
+    except Exception as e:
+        logger.error(f"Error loading chat room {group_id}: {str(e)}")
+        messages.error(request, "An error occurred while loading the chat. Please try again.")
         return redirect('social:dashboard')
-    
-    # Get messages with pagination
-    messages_list = group.messages.filter(is_deleted=False).select_related(
-        'sender', 'reply_to__sender'
-    ).prefetch_related('reactions__user').order_by('created_at').order_by('created_at')
-    
-    paginator = Paginator(messages_list, 50)
-    page_number = request.GET.get('page', 1)
-    page_messages = paginator.get_page(page_number)
-    
-    # Mark messages as read
-    ChatMessageDelivery.objects.filter(
-        message__group=group,
-        user=request.user,
-        status__in=['SENT', 'DELIVERED']
-    ).update(
-        status='READ',
-        read_at=timezone.now()
-    )
-    
-    # Update last read timestamp
-    membership.last_read_at = timezone.now()
-    membership.save(update_fields=['last_read_at'])
-    
-    # Get group members
-    group_members = group.members.filter(is_active=True).select_related('user')
-    
-    # Check Google Drive connection status
-    try:
-        drive_integration = request.user.drive_integration
-        is_drive_connected = drive_integration.is_active and not drive_integration.is_token_expired
-    except GoogleDriveIntegration.DoesNotExist:
-        drive_integration = None
-        is_drive_connected = False
-    
-    context = {
-        'page_title': f'Chat - {group.name}',
-        'group': group,
-        'messages': page_messages,
-        'group_members': group_members,
-        'user_membership': membership,
-        'can_manage_group': membership.role in ['ADMIN', 'MODERATOR'],
-        'is_drive_connected': is_drive_connected,
-        'drive_integration': drive_integration
-    }
-    
-    return render(request, 'social/chat_room.html', context)
 
 
 @login_required
@@ -243,6 +282,12 @@ def api_chat_messages(request, group_id):
                 'user_name': f"{reaction.user.first_name} {reaction.user.last_name}"
             })
         
+        # Safely get profile pic URL
+        try:
+            profile_pic_url = message.sender.profile_pic.url if message.sender.profile_pic and message.sender.profile_pic.name else None
+        except (ValueError, AttributeError):
+            profile_pic_url = None
+        
         messages_data.append({
             'id': message.id,
             'content': message.content,
@@ -250,7 +295,7 @@ def api_chat_messages(request, group_id):
             'sender': {
                 'id': message.sender.id,
                 'name': f"{message.sender.first_name} {message.sender.last_name}",
-                'profile_pic': message.sender.profile_pic.url if message.sender.profile_pic else None
+                'profile_pic': profile_pic_url
             },
             'reply_to': {
                 'id': message.reply_to.id,
@@ -428,11 +473,17 @@ def api_search_users(request):
     
     users_data = []
     for user in users:
+        # Safely get profile pic URL
+        try:
+            profile_pic_url = user.profile_pic.url if user.profile_pic and user.profile_pic.name else None
+        except (ValueError, AttributeError):
+            profile_pic_url = None
+        
         users_data.append({
             'id': user.id,
             'name': f"{user.first_name} {user.last_name}",
             'email': user.email,
-            'profile_pic': user.profile_pic.url if user.profile_pic else None,
+            'profile_pic': profile_pic_url,
             'user_type': user.get_user_type_display(),
             'is_online': user.is_online
         })

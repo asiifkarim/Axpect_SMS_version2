@@ -141,36 +141,43 @@ coverage.xml
 .pytest_cache/
 test-results/
 tests/
-test_*
+test_*.py
 *_test.py
+**/tests.py
+**/test_*.py
 
-# Documentation and reports (keep only README.md)
+# Documentation and reports (keep only README.md and LICENSE)
 *.md
 !README.md
-FEATURE_MAPPING_REPORT.md
-IMPLEMENTATION_REPORT.md
-PRODUCTION_DEPLOYMENT_GUIDE.md
-PROJECT_DOCUMENTATION.md
-plan.md
-SETUP_INSTRUCTIONS.md
-SETUP_GUIDE.md
-DEPLOYMENT_GUIDE.md
-API_DOCUMENTATION.md
-USER_MANUAL.md
+!LICENSE.md
+*_SUMMARY.md
+*_GUIDE.md
+*_IMPLEMENTATION.md
+*_FIXES.md
+*.plan.md
+FEATURE_*.md
+IMPLEMENTATION_*.md
+PRODUCTION_*.md
+PROJECT_*.md
+SETUP_*.md
+DEPLOYMENT_*.md
+API_*.md
+USER_*.md
 CHANGELOG.md
 CONTRIBUTING.md
 CODE_OF_CONDUCT.md
 
-# Migration files (keep only initial)
-main_app/migrations/*
-!main_app/migrations/__init__.py
-!main_app/migrations/0001_initial.py
-api/migrations/*
-!api/migrations/__init__.py
-social/migrations/*
-!social/migrations/__init__.py
-ai/migrations/*
-!ai/migrations/__init__.py
+# Migration files (production keeps all migrations)
+# Uncomment below lines for development to ignore migrations except initial
+# main_app/migrations/*
+# !main_app/migrations/__init__.py
+# !main_app/migrations/0001_initial.py
+# api/migrations/*
+# !api/migrations/__init__.py
+# social/migrations/*
+# !social/migrations/__init__.py
+# ai/migrations/*
+# !ai/migrations/__init__.py
 
 # Celery
 celerybeat-schedule

@@ -26,6 +26,8 @@
     <link rel="stylesheet" href="{% static 'plugins/daterangepicker/daterangepicker.css'%} ">
     <!-- summernote -->
     <link rel="stylesheet" href="{% static 'plugins/summernote/summernote-bs4.css'%} ">
+    <!-- Toastr -->
+    <link rel="stylesheet" href="{% static 'plugins/toastr/toastr.min.css'%} ">
     <!-- Dashboard Responsive CSS -->
     <link rel="stylesheet" href="{% static 'css/dashboard-responsive.css'%} ">
     <!-- Google Font: Source Sans Pro -->
@@ -144,7 +146,7 @@
                             </a>
                         </div>
                         <div class="dropdown-divider"></div>
-                        <a href="#" class="dropdown-item dropdown-footer" id="view-all-notifications">See All Notifications</a>
+                        <a href="/social/" class="dropdown-item dropdown-footer" id="view-all-notifications">View Messages</a>
                     </div>
                 </li>
 
@@ -264,7 +266,7 @@
     <!-- AdminLTE App -->
     <script src="{% static 'dist/js/adminlte.js'%} "></script>
     <!-- AdminLTE dashboard demo (This is only for demo purposes) -->
-    <script src="{% static 'dist/js/pages/dashboard.js'%}?v=5"></script>
+    <script src="{% static 'dist/js/pages/dashboard.js'%}?v=6"></script>
     <!-- AdminLTE for demo purposes -->
     <script src="{% static 'dist/js/demo.js'%} "></script>
     
@@ -297,11 +299,11 @@
     });
     </script>
     
-    <!-- Enhanced Notification System -->
-    <script src="{% static 'js/notifications.js' %}?v=2"></script>
+    <!-- Toastr for notifications -->
+    <script src="{% static 'plugins/toastr/toastr.min.js' %}"></script>
     
-    <!-- Job Card Assignment System -->
-    <script src="{% static 'js/job_card_assignment.js' %}"></script>
+    <!-- Enhanced Notification System -->
+    <script src="{% static 'dist/js/notifications.js' %}?v=3"></script>
     
     {% block custom_js %}
 
@@ -327,18 +329,12 @@
                     try {
                         const data = JSON.parse(event.data);
                         
-                        if (data.type === 'notification' && data.sound_type) {
+                        if (data.type === 'notification' && data.notification) {
                             // Play notification sound based on type
                             window.notificationManager.playNotificationSound(data.sound_type);
                             
-                            // Show notification if message is provided
-                            if (data.notification && data.notification.message) {
-                                window.notificationManager.show(
-                                    data.notification.message,
-                                    'info',
-                                    data.notification.title || 'Notification'
-                                );
-                            }
+                            // Show notification with full data for proper redirect handling
+                            window.notificationManager.handleRealTimeNotification(data.notification);
                         }
                     } catch (error) {
                         console.warn('Error parsing WebSocket message:', error);

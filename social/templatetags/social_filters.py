@@ -176,6 +176,19 @@ def user_reacted(message, user, reaction_type):
         return message.reactions.filter(user=user, reaction_type=reaction_type).exists()
     return False
 
+@register.filter
+def profile_pic_url(user, default='/static/dist/img/default-150x150.png'):
+    """
+    Safely get profile picture URL
+    Usage: {{ user|profile_pic_url }}
+    """
+    try:
+        if hasattr(user, 'profile_pic') and user.profile_pic and user.profile_pic.name:
+            return user.profile_pic.url
+    except (ValueError, AttributeError):
+        pass
+    return default
+
 @register.inclusion_tag('social/partials/message_reactions.html')
 def show_message_reactions(message, current_user):
     """

@@ -84,6 +84,8 @@ def check_in(request):
     """
     Staff check-in with GPS location
     """
+    from main_app.notification_helpers import notify_checkin
+    
     if request.user.user_type != 3:  # Only employees can check in
         return Response({'error': 'Only employees can check in'}, status=status.HTTP_403_FORBIDDEN)
     
@@ -124,6 +126,19 @@ def check_in(request):
         existing_attendance.notes = request.data.get('notes', '')
         existing_attendance.save()
         
+        # Get city name for notification
+        city_name = ''
+        if working_city_id:
+            try:
+                from main_app.models import City
+                city = City.objects.get(id=working_city_id)
+                city_name = city.name
+            except:
+                pass
+        
+        # Send check-in notification to manager
+        notify_checkin(employee, location=city_name)
+        
         return Response({
             'message': 'Checked in successfully',
             'attendance': AttendanceSerializer(existing_attendance).data
@@ -158,6 +173,19 @@ def check_in(request):
             notes=request.data.get('notes', '')
         )
         
+        # Get city name for notification
+        city_name = ''
+        if working_city_id:
+            try:
+                from main_app.models import City
+                city = City.objects.get(id=working_city_id)
+                city_name = city.name
+            except:
+                pass
+        
+        # Send check-in notification to manager
+        notify_checkin(employee, location=city_name)
+        
         return Response({
             'message': 'Checked in successfully',
             'attendance': AttendanceSerializer(attendance).data
@@ -169,6 +197,8 @@ def check_out(request):
     """
     Staff check-out with GPS location
     """
+    from main_app.notification_helpers import notify_checkout
+    
     if request.user.user_type != 3:
         return Response({'error': 'Only employees can check out'}, status=status.HTTP_403_FORBIDDEN)
     
@@ -184,6 +214,20 @@ def check_out(request):
         attendance.end_ts = timezone.now()
         attendance.end_gps = request.data.get('gps_location', '')
         attendance.save()
+        
+        # Calculate work duration
+        duration_hours = None
+        if attendance.start_ts and attendance.end_ts:
+            duration = attendance.end_ts - attendance.start_ts
+            duration_hours = duration.total_seconds() / 3600
+        
+        # Get city name for notification
+        city_name = ''
+        if attendance.working_city:
+            city_name = attendance.working_city.name
+        
+        # Send check-out notification to manager
+        notify_checkout(employee, location=city_name, duration_hours=duration_hours)
         
         return Response({
             'message': 'Checked out successfully',

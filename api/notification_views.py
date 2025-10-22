@@ -13,8 +13,8 @@ from django.db.models import Q
 import json
 
 from main_app.models import (
-    NotificationManager, NotificationEmployee, JobCard, 
-    Employee, Manager, CustomUser
+    NotificationManager, NotificationEmployee, NotificationAdmin, JobCard, 
+    Employee, Manager, Admin, CustomUser
 )
 
 
@@ -27,10 +27,57 @@ def pending_notifications(request):
         
         # Handle admin users (user_type == '1')
         if request.user.user_type == '1':  # Admin/CEO
-            # Admins can see notifications from all sources
-            # For now, we'll return empty notifications for admin
-            # This can be enhanced to show system-wide notifications
-            pass
+            try:
+                admin = Admin.objects.get(admin=request.user)
+                admin_notifications = NotificationAdmin.objects.filter(
+                    admin=admin,
+                    is_read=False,
+                    created_at__gte=timezone.now() - timezone.timedelta(hours=24)
+                ).order_by('-created_at')[:10]
+                
+                for notification in admin_notifications:
+                    # Determine notification type from message content
+                    notif_type = 'general'
+                    level = 'info'
+                    
+                    if 'sent you a message' in notification.message or ' in ' in notification.message:
+                        notif_type = 'message'
+                    elif 'applied for leave' in notification.message:
+                        notif_type = 'leave_application'
+                        level = 'warning'
+                    elif 'has been assigned' in notification.message:
+                        notif_type = 'task_assignment'
+                        level = 'info'
+                    elif 'updated' in notification.message and 'status' in notification.message:
+                        notif_type = 'task_update'
+                        level = 'info'
+                    elif 'customer' in notification.message and 'added' in notification.message:
+                        notif_type = 'customer_addition'
+                        level = 'success'
+                    elif 'feedback' in notification.message:
+                        notif_type = 'feedback'
+                    
+                    # Get title based on type
+                    titles = {
+                        'message': 'New Message',
+                        'leave_application': 'Leave Application',
+                        'task_assignment': 'Task Assignment',
+                        'task_update': 'Task Update',
+                        'customer_addition': 'New Customer',
+                        'feedback': 'Feedback Reply',
+                        'general': 'Notification'
+                    }
+                    
+                    notifications.append({
+                        'id': notification.id,
+                        'type': notif_type,
+                        'title': titles.get(notif_type, 'Notification'),
+                        'message': notification.message,
+                        'created_at': notification.created_at.isoformat(),
+                        'level': level
+                    })
+            except Admin.DoesNotExist:
+                pass
             
         elif request.user.user_type == '2':  # Manager
             try:
@@ -42,13 +89,40 @@ def pending_notifications(request):
                 ).order_by('-created_at')[:10]
                 
                 for notification in manager_notifications:
+                    # Determine notification type from message content
+                    notif_type = 'general'
+                    level = 'info'
+                    
+                    if 'sent you a message' in notification.message or ' in ' in notification.message:
+                        notif_type = 'message'
+                    elif 'applied for leave' in notification.message:
+                        notif_type = 'leave_application'
+                        level = 'warning'
+                    elif 'leave application' in notification.message and ('approved' in notification.message or 'rejected' in notification.message):
+                        notif_type = 'leave_status'
+                        level = 'success' if 'approved' in notification.message else 'danger'
+                    elif 'checked in' in notification.message or 'checked out' in notification.message:
+                        notif_type = 'attendance'
+                    elif 'feedback' in notification.message:
+                        notif_type = 'feedback'
+                    
+                    # Get title based on type
+                    titles = {
+                        'message': 'New Message',
+                        'leave_application': 'Leave Application',
+                        'leave_status': 'Leave Status',
+                        'attendance': 'Attendance Update',
+                        'feedback': 'Feedback Reply',
+                        'general': 'Notification'
+                    }
+                    
                     notifications.append({
                         'id': notification.id,
-                        'type': 'general',
-                        'title': 'New Notification',
+                        'type': notif_type,
+                        'title': titles.get(notif_type, 'Notification'),
                         'message': notification.message,
                         'created_at': notification.created_at.isoformat(),
-                        'level': 'info'
+                        'level': level
                     })
             except Manager.DoesNotExist:
                 pass
@@ -63,13 +137,41 @@ def pending_notifications(request):
                 ).order_by('-created_at')[:10]
                 
                 for notification in employee_notifications:
+                    # Determine notification type from message content
+                    notif_type = 'general'
+                    level = 'info'
+                    
+                    if 'sent you a message' in notification.message or ' in ' in notification.message:
+                        notif_type = 'message'
+                    elif 'applied for leave' in notification.message:
+                        notif_type = 'leave_application'
+                        level = 'warning'
+                    elif 'leave application' in notification.message and ('approved' in notification.message or 'rejected' in notification.message):
+                        notif_type = 'leave_status'
+                        level = 'success' if 'approved' in notification.message else 'danger'
+                    elif 'attendance has been updated' in notification.message:
+                        notif_type = 'attendance'
+                        level = 'warning'
+                    elif 'feedback' in notification.message:
+                        notif_type = 'feedback'
+                    
+                    # Get title based on type
+                    titles = {
+                        'message': 'New Message',
+                        'leave_application': 'Leave Application',
+                        'leave_status': 'Leave Status',
+                        'attendance': 'Attendance Update',
+                        'feedback': 'Feedback Reply',
+                        'general': 'Notification'
+                    }
+                    
                     notifications.append({
                         'id': notification.id,
-                        'type': 'general',
-                        'title': 'New Notification',
+                        'type': notif_type,
+                        'title': titles.get(notif_type, 'Notification'),
                         'message': notification.message,
                         'created_at': notification.created_at.isoformat(),
-                        'level': 'info'
+                        'level': level
                     })
             except Employee.DoesNotExist:
                 pass
@@ -137,7 +239,20 @@ def send_notification(request):
         recipient = get_object_or_404(CustomUser, id=recipient_id)
         
         # Create appropriate notification based on user type
-        if recipient.user_type == '2':  # Manager
+        if recipient.user_type == '1':  # Admin
+            try:
+                admin = Admin.objects.get(admin=recipient)
+                NotificationAdmin.objects.create(
+                    admin=admin,
+                    message=message
+                )
+            except Admin.DoesNotExist:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Admin profile not found'
+                }, status=404)
+                
+        elif recipient.user_type == '2':  # Manager
             try:
                 manager = Manager.objects.get(admin=recipient)
                 NotificationManager.objects.create(
@@ -233,6 +348,11 @@ def assign_job_card(request):
                 employee=employee,
                 message=f'You have been assigned Job Card #{job_card.job_card_number}. Priority: {priority}'
             )
+        
+        # Notify admin about the assignment (only if assigned by manager/employee)
+        if request.user.user_type in ['2', '3']:
+            from main_app.notification_helpers import notify_task_assignment
+            notify_task_assignment(job_card)
         
         return JsonResponse({
             'success': True,
@@ -397,6 +517,10 @@ def update_job_card_status(request, job_card_id):
                 except Manager.DoesNotExist:
                     pass
         
+        # Notify admin about the status update
+        from main_app.notification_helpers import notify_task_update
+        notify_task_update(job_card, old_status, new_status, request.user)
+        
         return JsonResponse({
             'success': True,
             'message': f'Job card status updated to {new_status}',
@@ -469,6 +593,7 @@ def job_card_updates(request):
 
 
 @login_required
+@csrf_exempt
 @require_http_methods(["POST"])
 def mark_notification_read(request):
     """Mark a notification as read"""
@@ -484,7 +609,23 @@ def mark_notification_read(request):
             }, status=400)
         
         # Mark notification as read based on user type
-        if request.user.user_type == '2':  # Manager
+        if request.user.user_type == '1':  # Admin
+            try:
+                admin = Admin.objects.get(admin=request.user)
+                notification = NotificationAdmin.objects.get(
+                    id=notification_id,
+                    admin=admin
+                )
+                notification.is_read = True
+                notification.read_at = timezone.now()
+                notification.save()
+            except (Admin.DoesNotExist, NotificationAdmin.DoesNotExist):
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Notification not found'
+                }, status=404)
+                
+        elif request.user.user_type == '2':  # Manager
             try:
                 manager = Manager.objects.get(admin=request.user)
                 notification = NotificationManager.objects.get(

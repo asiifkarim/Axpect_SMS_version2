@@ -232,6 +232,126 @@ class NotificationManager {
                 .chat-notification .toast-close:hover {
                     color: white;
                 }
+                
+                /* Leave Application Notification Styles */
+                .leave-notification {
+                    background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+                    color: white;
+                    border-left: none;
+                }
+                
+                .leave-notification .toast-title,
+                .leave-notification .toast-body {
+                    color: white;
+                }
+                
+                .leave-notification .toast-close {
+                    color: rgba(255,255,255,0.8);
+                }
+                
+                .leave-notification .toast-close:hover {
+                    color: white;
+                }
+                
+                /* Task Assignment Notification Styles */
+                .task-assignment-notification {
+                    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+                    color: white;
+                    border-left: none;
+                }
+                
+                .task-assignment-notification .toast-title,
+                .task-assignment-notification .toast-body {
+                    color: white;
+                }
+                
+                .task-assignment-notification .toast-close {
+                    color: rgba(255,255,255,0.8);
+                }
+                
+                .task-assignment-notification .toast-close:hover {
+                    color: white;
+                }
+                
+                /* Task Update Notification Styles */
+                .task-update-notification {
+                    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+                    color: white;
+                    border-left: none;
+                }
+                
+                .task-update-notification .toast-title,
+                .task-update-notification .toast-body {
+                    color: white;
+                }
+                
+                .task-update-notification .toast-close {
+                    color: rgba(255,255,255,0.8);
+                }
+                
+                .task-update-notification .toast-close:hover {
+                    color: white;
+                }
+                
+                /* Customer Notification Styles */
+                .customer-notification {
+                    background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+                    color: white;
+                    border-left: none;
+                }
+                
+                .customer-notification .toast-title,
+                .customer-notification .toast-body {
+                    color: white;
+                }
+                
+                .customer-notification .toast-close {
+                    color: rgba(255,255,255,0.8);
+                }
+                
+                .customer-notification .toast-close:hover {
+                    color: white;
+                }
+                
+                /* Message Notification Styles */
+                .message-notification {
+                    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+                    color: white;
+                    border-left: none;
+                }
+                
+                .message-notification .toast-title,
+                .message-notification .toast-body {
+                    color: white;
+                }
+                
+                .message-notification .toast-close {
+                    color: rgba(255,255,255,0.8);
+                }
+                
+                .message-notification .toast-close:hover {
+                    color: white;
+                }
+                
+                /* Job Update Notification Styles */
+                .job-update-notification {
+                    background: linear-gradient(135deg, #6610f2 0%, #5a0fc9 100%);
+                    color: white;
+                    border-left: none;
+                }
+                
+                .job-update-notification .toast-title,
+                .job-update-notification .toast-body {
+                    color: white;
+                }
+                
+                .job-update-notification .toast-close {
+                    color: rgba(255,255,255,0.8);
+                }
+                
+                .job-update-notification .toast-close:hover {
+                    color: white;
+                }
             </style>
         `;
         document.body.appendChild(this.container);
@@ -420,38 +540,161 @@ class NotificationManager {
         
         // Display notification based on type
         let notificationShown = false;
+        const redirectUrl = data.redirect_url || '#';
+        
         switch (data.type) {
-            case 'job_assignment':
-                this.showJobAssignment(data.job_card, data.assigned_to);
-                notificationShown = true;
-                break;
-            case 'job_status_update':
-                this.show(
-                    `Job Card #${data.job_card.number} status updated to: ${data.new_status}`,
-                    'info',
-                    'Job Status Update'
-                );
-                notificationShown = true;
-                break;
-            case 'new_message':
-                this.show(data.message, 'info', 'New Message');
-                notificationShown = true;
-                break;
-            case 'direct_message':
-                this.show(data.notification.message, 'info', data.notification.title, 7000, {
-                    className: 'direct-message-notification',
+            case 'leave_application':
+                this.show(data.message, data.level || 'warning', data.title || 'Leave Application', 7000, {
+                    className: 'leave-notification',
                     actions: [{
-                        text: 'View Message',
+                        text: 'View Request',
                         className: 'btn-light btn-sm',
                         handler: () => {
-                            window.location.href = `/social/chat/${data.notification.group_id}/`;
+                            window.location.href = redirectUrl;
                         }
                     }]
                 });
                 notificationShown = true;
                 break;
+                
+            case 'task_assignment':
+                this.show(data.message, data.level || 'info', data.title || 'Task Assignment', 7000, {
+                    className: 'task-assignment-notification',
+                    actions: [{
+                        text: 'View Task',
+                        className: 'btn-light btn-sm',
+                        handler: () => {
+                            window.location.href = redirectUrl;
+                        }
+                    }]
+                });
+                notificationShown = true;
+                break;
+                
+            case 'task_update':
+                this.show(data.message, data.level || 'info', data.title || 'Task Update', 7000, {
+                    className: 'task-update-notification',
+                    actions: [{
+                        text: 'View Task',
+                        className: 'btn-light btn-sm',
+                        handler: () => {
+                            window.location.href = redirectUrl;
+                        }
+                    }]
+                });
+                notificationShown = true;
+                break;
+                
+            case 'customer_addition':
+                this.show(data.message, data.level || 'success', data.title || 'New Customer', 7000, {
+                    className: 'customer-notification',
+                    actions: [{
+                        text: 'View Customer',
+                        className: 'btn-light btn-sm',
+                        handler: () => {
+                            window.location.href = redirectUrl;
+                        }
+                    }]
+                });
+                notificationShown = true;
+                break;
+                
+            case 'message':
+                this.show(data.message, data.level || 'info', data.title || 'New Message', 7000, {
+                    className: 'message-notification',
+                    actions: [{
+                        text: 'View Message',
+                        className: 'btn-light btn-sm',
+                        handler: () => {
+                            window.location.href = redirectUrl;
+                        }
+                    }]
+                });
+                notificationShown = true;
+                break;
+                
+            case 'job_assignment':
+                if (data.job_card) {
+                    this.showJobAssignment(data.job_card, data.assigned_to);
+                } else {
+                    this.show(data.message, data.level || 'success', data.title || 'Job Assignment', 7000, {
+                        className: 'job-assignment-notification',
+                        actions: [{
+                            text: 'View Job',
+                            className: 'btn-light btn-sm',
+                            handler: () => {
+                                window.location.href = redirectUrl;
+                            }
+                        }]
+                    });
+                }
+                notificationShown = true;
+                break;
+                
+            case 'job_status_update':
+                this.show(
+                    data.message || `Job Card #${data.job_card?.number} status updated to: ${data.new_status}`,
+                    data.level || 'info',
+                    data.title || 'Job Status Update',
+                    7000,
+                    {
+                        className: 'job-update-notification',
+                        actions: [{
+                            text: 'View Job',
+                            className: 'btn-light btn-sm',
+                            handler: () => {
+                                window.location.href = redirectUrl;
+                            }
+                        }]
+                    }
+                );
+                notificationShown = true;
+                break;
+                
+            case 'new_message':
+                this.show(data.message, data.level || 'info', data.title || 'New Message', 7000, {
+                    className: 'message-notification',
+                    actions: [{
+                        text: 'View Message',
+                        className: 'btn-light btn-sm',
+                        handler: () => {
+                            window.location.href = redirectUrl;
+                        }
+                    }]
+                });
+                notificationShown = true;
+                break;
+                
+            case 'direct_message':
+                this.show(data.notification?.message || data.message, 'info', data.notification?.title || data.title || 'Direct Message', 7000, {
+                    className: 'direct-message-notification',
+                    actions: [{
+                        text: 'View Message',
+                        className: 'btn-light btn-sm',
+                        handler: () => {
+                            const chatUrl = redirectUrl !== '#' ? redirectUrl : `/social/chat/${data.notification?.group_id || data.group_id}/`;
+                            window.location.href = chatUrl;
+                        }
+                    }]
+                });
+                notificationShown = true;
+                break;
+                
             default:
-                this.show(data.message, data.level || 'info', data.title);
+                // For any other notification type, show with a generic action button if redirect_url exists
+                if (redirectUrl && redirectUrl !== '#') {
+                    this.show(data.message, data.level || 'info', data.title || 'Notification', 7000, {
+                        actions: [{
+                            text: 'View Details',
+                            className: 'btn-light btn-sm',
+                            handler: () => {
+                                window.location.href = redirectUrl;
+                            }
+                        }]
+                    });
+                } else {
+                    this.show(data.message, data.level || 'info', data.title || 'Notification');
+                }
                 notificationShown = true;
         }
         

@@ -147,6 +147,8 @@ def update_attendance(request):
 
 
 def manager_apply_leave(request):
+    from .notification_helpers import notify_leave_application
+    
     form = LeaveReportManagerForm(request.POST or None)
     manager = get_object_or_404(Manager, admin_id=request.user.id)
     context = {
@@ -160,6 +162,10 @@ def manager_apply_leave(request):
                 obj = form.save(commit=False)
                 obj.manager = manager
                 obj.save()
+                
+                # Send notification to CEO/admin about new leave application
+                notify_leave_application(obj, applicant_type='manager')
+                
                 messages.success(
                     request, "Application for leave has been submitted for review")
                 return redirect(reverse('manager_apply_leave'))

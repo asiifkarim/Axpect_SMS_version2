@@ -129,7 +129,7 @@
                                     <!-- For DM, show other user's avatar -->
                                     {% for member in item.group.members.all %}
                                         {% if member.user != request.user %}
-                                            <img src="{{ member.user.profile_pic.url|default:'/static/dist/img/default-150x150.png' }}" 
+                                            <img src="{{ member.user|profile_pic_url }}" 
                                                  alt="Avatar" class="chat-avatar">
                                             {% if member.user.is_online %}
                                                 <span class="online-indicator"></span>

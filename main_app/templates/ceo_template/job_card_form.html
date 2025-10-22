@@ -14,6 +14,36 @@
     content: " *";
     color: red;
 }
+.alert-info {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    color: #ffffff;
+}
+.alert-info small {
+    color: #f0f0f0;
+    font-weight: 500;
+}
+.custom-control-label {
+    color: #ffffff !important;
+    font-weight: 600;
+}
+.custom-control-input:checked ~ .custom-control-label::before {
+    background-color: #ffc107;
+    border-color: #ffc107;
+}
+#id_is_general_assignment {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    margin-right: 10px;
+    vertical-align: middle;
+    accent-color: #ffc107;
+}
+.alert-info i {
+    color: #ffd54f;
+}
 </style>
 {% endblock custom_css %}
 
@@ -101,15 +131,37 @@
                                 <div class="form-section">
                                     <h5 class="mb-3"><i class="fas fa-user-tag"></i> Assignment Details</h5>
                                     <div class="row">
-                                        <div class="col-md-6">
+                                        <div class="col-md-12">
                                             <div class="form-group">
-                                                <label for="{{ form.assigned_to.id_for_label }}" class="required-field">Assign To</label>
+                                                <div class="alert alert-info py-2">
+                                                    <div class="custom-control custom-checkbox custom-control-inline">
+                                                        {{ form.is_general_assignment }}
+                                                        <label class="custom-control-label font-weight-bold" for="{{ form.is_general_assignment.id_for_label }}" style="font-size: 1.05em;">
+                                                            <i class="fas fa-users mr-1"></i> {{ form.is_general_assignment.label }}
+                                                        </label>
+                                                    </div>
+                                                    <small class="d-block mt-1 ml-4 pl-1">
+                                                        <i class="fas fa-bell mr-1"></i> All employees will be notified when this option is selected
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-group" id="assigned-to-group">
+                                                <label for="{{ form.assigned_to.id_for_label }}">
+                                                    <i class="fas fa-user mr-1"></i> Assign To Specific Employee
+                                                </label>
                                                 {{ form.assigned_to }}
+                                                <small class="form-text text-muted">Or use "Assign to All Employees" above</small>
                                             </div>
                                         </div>
                                         <div class="col-md-6">
                                             <div class="form-group">
-                                                <label for="{{ form.due_date.id_for_label }}">Due Date & Time</label>
+                                                <label for="{{ form.due_date.id_for_label }}">
+                                                    <i class="fas fa-calendar mr-1"></i> Due Date & Time
+                                                </label>
                                                 {{ form.due_date }}
                                             </div>
                                         </div>
@@ -176,11 +228,41 @@ $(document).ready(function() {
         dueDateInput.min = tomorrow.toISOString().slice(0, 16);
     }
     
+    // Handle general assignment checkbox
+    const generalAssignmentCheckbox = $('#{{ form.is_general_assignment.id_for_label }}');
+    const assignedToGroup = $('#assigned-to-group');
+    const assignedToSelect = $('#{{ form.assigned_to.id_for_label }}');
+    
+    function toggleAssignedTo() {
+        if (generalAssignmentCheckbox.is(':checked')) {
+            assignedToGroup.hide();
+            assignedToSelect.val('');
+            assignedToSelect.prop('required', false);
+        } else {
+            assignedToGroup.show();
+        }
+    }
+    
+    // Initialize on page load
+    toggleAssignedTo();
+    
+    // Toggle on checkbox change
+    generalAssignmentCheckbox.on('change', toggleAssignedTo);
+    
     // Form validation
     $('form').on('submit', function(e) {
         let isValid = true;
         
-        // Check required fields
+        // Check if either general assignment is checked or assigned_to is selected
+        if (!generalAssignmentCheckbox.is(':checked') && !assignedToSelect.val()) {
+            isValid = false;
+            assignedToSelect.addClass('is-invalid');
+            alert('Please either select an employee or check "Assign to All Employees"');
+            e.preventDefault();
+            return false;
+        }
+        
+        // Check other required fields
         $('input[required], select[required], textarea[required]').each(function() {
             if (!$(this).val()) {
                 isValid = false;

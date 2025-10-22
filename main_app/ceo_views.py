@@ -516,6 +516,8 @@ def manager_feedback_message(request):
 
 @csrf_exempt
 def view_manager_leave(request):
+    from main_app.notification_helpers import notify_leave_status
+    
     if request.method != 'POST':
         allLeave = LeaveReportManager.objects.all()
         context = {
@@ -534,6 +536,10 @@ def view_manager_leave(request):
             leave = get_object_or_404(LeaveReportManager, id=id)
             leave.status = status
             leave.save()
+            
+            # Send notification to manager about leave status
+            notify_leave_status(leave, status, applicant_type='manager')
+            
             return HttpResponse(True)
         except Exception as e:
             return False
@@ -541,6 +547,8 @@ def view_manager_leave(request):
 
 @csrf_exempt
 def view_employee_leave(request):
+    from main_app.notification_helpers import notify_leave_status
+    
     if request.method != 'POST':
         allLeave = LeaveReportEmployee.objects.all()
         context = {
@@ -559,6 +567,10 @@ def view_employee_leave(request):
             leave = get_object_or_404(LeaveReportEmployee, id=id)
             leave.status = status
             leave.save()
+            
+            # Send notification to employee about leave status
+            notify_leave_status(leave, status, applicant_type='employee')
+            
             return HttpResponse(True)
         except Exception as e:
             return False
@@ -812,6 +824,8 @@ def admin_customer_list(request):
 
 def admin_customer_create(request):
     """Admin view to create new customers"""
+    from main_app.notification_helpers import notify_customer_addition
+    
     if request.user.user_type != '1':
         messages.error(request, "Access denied. Only administrators can access this page.")
         return redirect('login_page')
@@ -820,6 +834,10 @@ def admin_customer_create(request):
         form = CustomerForm(request.POST)
         if form.is_valid():
             customer = form.save()
+            
+            # Notify admin about the customer addition (for other admins if multiple exist)
+            notify_customer_addition(customer, request.user)
+            
             messages.success(request, f'Customer "{customer.name}" created successfully!')
             return redirect('admin_customer_list')
         else:

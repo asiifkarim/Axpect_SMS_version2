@@ -9,7 +9,7 @@ whitenoise>=6.5.0
 
 # Production ASGI server
 daphne>=4.0.0
-uvloop>=0.17.0  # Performance improvement for asyncio
+# uvloop>=0.17.0  # Performance improvement for asyncio (Unix/Linux/macOS only - not supported on Windows)
 
 # Task queue and caching
 celery>=5.3.0

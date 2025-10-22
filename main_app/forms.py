@@ -229,6 +229,14 @@ class JobCardForm(FormSettings):
                 except Manager.DoesNotExist:
                     self.fields['assigned_to'].queryset = Employee.objects.none()
         
+        # Make assigned_to optional when general assignment is checked
+        self.fields['assigned_to'].required = False
+        
+        # Add help text for is_general_assignment
+        if 'is_general_assignment' in self.fields:
+            self.fields['is_general_assignment'].help_text = 'Check this to assign this job card to all employees'
+            self.fields['is_general_assignment'].label = 'Assign to All Employees'
+        
         # Set widget attributes for existing fields
         if 'due_date' in self.fields:
             self.fields['due_date'].widget = forms.DateTimeInput(
@@ -238,6 +246,21 @@ class JobCardForm(FormSettings):
             self.fields['description'].widget = forms.Textarea(
                 attrs={'rows': 4, 'class': 'form-control'}
             )
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        assigned_to = cleaned_data.get('assigned_to')
+        is_general_assignment = cleaned_data.get('is_general_assignment')
+        
+        # Ensure at least one assignment method is selected
+        if not assigned_to and not is_general_assignment:
+            raise forms.ValidationError('Please either select an employee or check "Assign to All Employees"')
+        
+        # If general assignment is checked, clear assigned_to
+        if is_general_assignment:
+            cleaned_data['assigned_to'] = None
+        
+        return cleaned_data
     
     def save(self, commit=True):
         instance = super().save(commit=False)
@@ -261,7 +284,7 @@ class JobCardForm(FormSettings):
     class Meta:
         model = JobCard
         fields = [
-            'type', 'description', 'assigned_to', 'priority', 'due_date',
+            'type', 'description', 'assigned_to', 'is_general_assignment', 'priority', 'due_date',
             'customer', 'city', 'related_item'
         ]
         widgets = {
@@ -270,6 +293,7 @@ class JobCardForm(FormSettings):
             'customer': forms.Select(attrs={'class': 'form-control'}),
             'city': forms.Select(attrs={'class': 'form-control'}),
             'related_item': forms.Select(attrs={'class': 'form-control'}),
+            'is_general_assignment': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
 

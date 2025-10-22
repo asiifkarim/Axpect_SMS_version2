@@ -264,7 +264,7 @@
                             <div class="online-users mr-3">
                                 {% for member in group_members %}
                                     {% if member.user.is_online %}
-                                        <img src="{{ member.user.profile_pic.url|default:'/static/dist/img/default-150x150.png' }}" 
+                                        <img src="{{ member.user|profile_pic_url }}" 
                                              class="online-user" 
                                              title="{{ member.user.first_name }} {{ member.user.last_name }} (Online)">
                                     {% endif %}
@@ -302,7 +302,7 @@
                     {% for message in messages %}
                         <div class="message {% if message.sender == request.user %}own{% endif %}" data-message-id="{{ message.id }}">
                             {% if message.sender != request.user %}
-                                <img src="{{ message.sender.profile_pic.url|default:'/static/dist/img/default-150x150.png' }}" 
+                                <img src="{{ message.sender|profile_pic_url }}" 
                                      class="message-avatar">
                             {% endif %}
                             
@@ -368,7 +368,7 @@
                             </div>
                             
                             {% if message.sender == request.user %}
-                                <img src="{{ message.sender.profile_pic.url|default:'/static/dist/img/default-150x150.png' }}" 
+                                <img src="{{ message.sender|profile_pic_url }}" 
                                      class="message-avatar">
                             {% endif %}
                         </div>
@@ -457,7 +457,7 @@
                     {% for member in group_members %}
                         <div class="list-group-item d-flex align-items-center">
                             <div class="position-relative mr-3">
-                                <img src="{{ member.user.profile_pic.url|default:'/static/dist/img/default-150x150.png' }}" 
+                                <img src="{{ member.user|profile_pic_url }}" 
                                      class="rounded-circle" width="40" height="40">
                                 {% if member.user.is_online %}
                                     <span class="position-absolute" style="bottom: 0; right: 0; width: 12px; height: 12px; background: #28a745; border: 2px solid white; border-radius: 50%;"></span>

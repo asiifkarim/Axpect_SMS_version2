@@ -4,7 +4,12 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
 from django.utils import timezone
-from main_app.models import CustomUser, ChatGroup, ChatMessage, ChatGroupMember, ChatMessageDelivery
+from main_app.models import (
+    CustomUser, ChatGroup, ChatMessage, ChatGroupMember, ChatMessageDelivery,
+    NotificationEmployee, NotificationManager, Employee, Manager
+)
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 logger = logging.getLogger(__name__)
 
@@ -260,7 +265,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     
     @database_sync_to_async
     def save_message(self, content, reply_to_id=None):
-        """Save message to database"""
+        """Save message to database and create notifications"""
         try:
             group = ChatGroup.objects.get(id=self.group_id)
             reply_to = None
@@ -278,22 +283,110 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 reply_to=reply_to,
                 message_type='TEXT'
             )
+            
+            # Create notifications for all group members except sender
+            self._create_message_notifications(group, message)
+            
             return message
         except Exception as e:
             logger.error(f"Error saving message: {str(e)}")
             return None
     
+    def _create_message_notifications(self, group, message):
+        """Create notifications for group members about new message"""
+        try:
+            # Get all active members except the sender
+            members = ChatGroupMember.objects.filter(
+                group=group,
+                is_active=True
+            ).exclude(user=self.user).select_related('user')
+            
+            # Preview message (first 50 chars)
+            preview = message.content[:50] + '...' if len(message.content) > 50 else message.content
+            sender_name = f"{self.user.first_name} {self.user.last_name}".strip() or self.user.username
+            
+            # Determine group name for notification
+            if group.is_direct_message:
+                group_name = "sent you a message"
+            else:
+                group_name = f"in {group.name}"
+            
+            for member in members:
+                try:
+                    # Create appropriate notification based on user type
+                    if member.user.user_type == '1':  # Admin
+                        from main_app.models import Admin, NotificationAdmin
+                        admin = Admin.objects.get(admin=member.user)
+                        NotificationAdmin.objects.create(
+                            admin=admin,
+                            message=f"{sender_name} {group_name}: {preview}"
+                        )
+                    elif member.user.user_type == '3':  # Employee
+                        employee = Employee.objects.get(admin=member.user)
+                        NotificationEmployee.objects.create(
+                            employee=employee,
+                            message=f"{sender_name} {group_name}: {preview}"
+                        )
+                    elif member.user.user_type == '2':  # Manager
+                        manager = Manager.objects.get(admin=member.user)
+                        NotificationManager.objects.create(
+                            manager=manager,
+                            message=f"{sender_name} {group_name}: {preview}"
+                        )
+                    
+                    # Send WebSocket notification to the user
+                    channel_layer = get_channel_layer()
+                    if channel_layer:
+                        try:
+                            async_to_sync(channel_layer.group_send)(
+                                f'notifications_{member.user.id}',
+                                {
+                                    'type': 'notification_message',
+                                    'notification': {
+                                        'id': f'msg_{message.id}_{member.user.id}',
+                                        'type': 'message',
+                                        'title': 'New Message',
+                                        'message': f"{sender_name}: {preview}",
+                                        'level': 'info',
+                                        'group_id': group.id,
+                                        'redirect_url': f'/social/chat/{group.id}/',
+                                        'created_at': message.created_at.isoformat()
+                                    },
+                                    'sound_type': 'message'
+                                }
+                            )
+                        except Exception as ws_error:
+                            logger.error(f"Error sending WebSocket notification: {str(ws_error)}")
+                    
+                except Exception as profile_error:
+                    logger.warning(f"User profile not found for user {member.user.id}: {str(profile_error)}")
+                    continue
+                except Exception as e:
+                    logger.error(f"Error creating notification for user {member.user.id}: {str(e)}")
+                    continue
+                    
+        except Exception as e:
+            logger.error(f"Error creating message notifications: {str(e)}")
+    
     @database_sync_to_async
     def serialize_message(self, message):
         """Serialize message for WebSocket transmission"""
         try:
+            # Safely get profile pic URL
+            profile_pic_url = None
+            try:
+                if message.sender.profile_pic and message.sender.profile_pic.name:
+                    profile_pic_url = message.sender.profile_pic.url
+            except (ValueError, AttributeError):
+                profile_pic_url = None
+            
             return {
                 'id': message.id,
                 'content': message.content,
                 'sender': {
                     'id': message.sender.id,
                     'name': f"{message.sender.first_name} {message.sender.last_name}",
-                    'profile_pic': message.sender.profile_pic.url if message.sender.profile_pic and hasattr(message.sender.profile_pic, 'url') else None
+                    'profile_pic': profile_pic_url
                 },
                 'message_type': message.message_type,
                 'reply_to': {

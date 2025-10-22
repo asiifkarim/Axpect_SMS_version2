@@ -6,10 +6,35 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core.paginator import Paginator
 from django.db.models import Q, Count
 from django.utils import timezone
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 import json
 
 from .models import *
 from .forms import JobCardForm, JobCardUpdateForm, JobCardCommentForm, JobCardTimeLogForm
+
+
+# ===============================
+# HELPER FUNCTIONS
+# ===============================
+
+def send_websocket_notification(user_id, notification_data):
+    """Send notification via WebSocket to a specific user"""
+    try:
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            async_to_sync(channel_layer.group_send)(
+                f'notifications_{user_id}',
+                {
+                    'type': 'notification_message',
+                    'notification': notification_data,
+                    'sound_type': notification_data.get('level', 'info')
+                }
+            )
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error sending WebSocket notification: {str(e)}")
 
 
 # ===============================
@@ -85,6 +110,8 @@ def admin_job_card_dashboard(request):
 @login_required
 def admin_create_job_card(request):
     """Admin view to create new job cards"""
+    from main_app.notification_helpers import notify_task_assignment
+    
     if request.user.user_type != '1':
         messages.error(request, "Access denied. Only administrators can access this page.")
         return redirect('login_page')
@@ -97,7 +124,67 @@ def admin_create_job_card(request):
             job_card.status = 'PENDING'
             job_card.save()
             
-            messages.success(request, f'Job Card {job_card.job_card_number} created successfully!')
+            # Send notifications
+            if job_card.is_general_assignment:
+                # Notify all employees
+                employees = Employee.objects.all()
+                for employee in employees:
+                    # Create database notification
+                    NotificationEmployee.objects.create(
+                        employee=employee,
+                        message=f"New job card assigned to all staff: {job_card.title}"
+                    )
+                    # Send WebSocket notification
+                    if employee.admin:
+                        notification_data = {
+                            'id': f'job_{job_card.id}_{employee.id}',
+                            'type': 'job_assignment',
+                            'title': 'New Job Assignment',
+                            'message': f'New job card assigned to all staff: {job_card.title}',
+                            'level': 'success',
+                            'job_card': {
+                                'id': job_card.id,
+                                'number': job_card.job_card_number,
+                                'priority': job_card.priority,
+                                'due_date': job_card.due_date.isoformat() if job_card.due_date else None
+                            }
+                        }
+                        send_websocket_notification(employee.admin.id, notification_data)
+                messages.success(request, f'Job Card {job_card.job_card_number} created and notifications sent to all employees!')
+            elif job_card.assigned_to:
+                # Notify specific employee
+                try:
+                    employee = job_card.assigned_to
+                    NotificationEmployee.objects.create(
+                        employee=employee,
+                        message=f"New job card assigned to you: {job_card.title}"
+                    )
+                    # Send WebSocket notification
+                    notification_data = {
+                        'id': f'job_{job_card.id}',
+                        'type': 'job_assignment',
+                        'title': 'New Job Assignment',
+                        'message': f'You have been assigned Job Card #{job_card.job_card_number}',
+                        'level': 'success',
+                        'job_card': {
+                            'id': job_card.id,
+                            'number': job_card.job_card_number,
+                            'priority': job_card.priority,
+                            'due_date': job_card.due_date.isoformat() if job_card.due_date else None
+                        }
+                    }
+                    send_websocket_notification(job_card.assigned_to.id, notification_data)
+                    
+                    # Notify admin about the assignment (only if assigned by manager)
+                    if request.user.user_type == '2':
+                        notify_task_assignment(job_card)
+                    
+                    messages.success(request, f'Job Card {job_card.job_card_number} created and notification sent!')
+                except Employee.DoesNotExist:
+                    messages.success(request, f'Job Card {job_card.job_card_number} created successfully!')
+            else:
+                messages.success(request, f'Job Card {job_card.job_card_number} created successfully!')
+            
             return redirect('admin_job_card_dashboard')
         else:
             messages.error(request, 'Please correct the errors below.')
@@ -186,6 +273,8 @@ def manager_job_card_dashboard(request):
 @login_required
 def manager_create_job_card(request):
     """Manager view to create new job cards for employees in their division"""
+    from main_app.notification_helpers import notify_task_assignment
+    
     if request.user.user_type != '2':
         messages.error(request, "Access denied. Only managers can access this page.")
         return redirect('login_page')
@@ -198,7 +287,71 @@ def manager_create_job_card(request):
             job_card.status = 'PENDING'
             job_card.save()
             
-            messages.success(request, f'Job Card {job_card.job_card_number} created successfully!')
+            # Send notifications
+            if job_card.is_general_assignment:
+                # Get manager's division
+                try:
+                    manager = Manager.objects.get(admin=request.user)
+                    # Notify all employees in manager's division
+                    employees = Employee.objects.filter(division=manager.division)
+                    for employee in employees:
+                        # Create database notification
+                        NotificationEmployee.objects.create(
+                            employee=employee,
+                            message=f"New job card assigned to all staff in {manager.division.name}: {job_card.title}"
+                        )
+                        # Send WebSocket notification
+                        if employee.admin:
+                            notification_data = {
+                                'id': f'job_{job_card.id}_{employee.id}',
+                                'type': 'job_assignment',
+                                'title': 'New Job Assignment',
+                                'message': f'New job card assigned to all staff in {manager.division.name}: {job_card.title}',
+                                'level': 'success',
+                                'job_card': {
+                                    'id': job_card.id,
+                                    'number': job_card.job_card_number,
+                                    'priority': job_card.priority,
+                                    'due_date': job_card.due_date.isoformat() if job_card.due_date else None
+                                }
+                            }
+                            send_websocket_notification(employee.admin.id, notification_data)
+                    messages.success(request, f'Job Card {job_card.job_card_number} created and notifications sent to all employees in your division!')
+                except Manager.DoesNotExist:
+                    messages.success(request, f'Job Card {job_card.job_card_number} created successfully!')
+            elif job_card.assigned_to:
+                # Notify specific employee
+                try:
+                    employee = job_card.assigned_to
+                    NotificationEmployee.objects.create(
+                        employee=employee,
+                        message=f"New job card assigned to you: {job_card.title}"
+                    )
+                    # Send WebSocket notification
+                    notification_data = {
+                        'id': f'job_{job_card.id}',
+                        'type': 'job_assignment',
+                        'title': 'New Job Assignment',
+                        'message': f'You have been assigned Job Card #{job_card.job_card_number}',
+                        'level': 'success',
+                        'job_card': {
+                            'id': job_card.id,
+                            'number': job_card.job_card_number,
+                            'priority': job_card.priority,
+                            'due_date': job_card.due_date.isoformat() if job_card.due_date else None
+                        }
+                    }
+                    send_websocket_notification(job_card.assigned_to.id, notification_data)
+                    
+                    # Notify admin about the assignment
+                    notify_task_assignment(job_card)
+                    
+                    messages.success(request, f'Job Card {job_card.job_card_number} created and notification sent!')
+                except Employee.DoesNotExist:
+                    messages.success(request, f'Job Card {job_card.job_card_number} created successfully!')
+            else:
+                messages.success(request, f'Job Card {job_card.job_card_number} created successfully!')
+            
             return redirect('manager_job_card_dashboard')
         else:
             messages.error(request, 'Please correct the errors below.')
@@ -228,11 +381,11 @@ def employee_job_card_dashboard(request):
     status_filter = request.GET.get('status', '')
     priority_filter = request.GET.get('priority', '')
     
-    # Base queryset - job cards assigned to this employee
+    # Base queryset - job cards assigned to this employee OR general assignments
     try:
         employee = request.user.employee
         job_cards = JobCard.objects.filter(
-            assigned_to=employee
+            Q(assigned_to=employee) | Q(is_general_assignment=True)
         ).select_related('assigned_by', 'customer')
     except AttributeError:
         # User doesn't have an employee profile
@@ -299,7 +452,8 @@ def job_card_detail(request, job_card_id):
         except Manager.DoesNotExist:
             pass
     elif request.user.user_type == '3':  # Employee
-        can_view = job_card.assigned_to.admin == request.user
+        # Employee can view if assigned to them or if it's a general assignment
+        can_view = (job_card.assigned_to and job_card.assigned_to.admin == request.user) or job_card.is_general_assignment
         can_edit = can_view
     
     if not can_view:
@@ -448,7 +602,7 @@ def update_job_card_status(request):
             except Manager.DoesNotExist:
                 pass
         elif request.user.user_type == '3':  # Employee
-            can_edit = job_card.assigned_to.admin == request.user
+            can_edit = (job_card.assigned_to and job_card.assigned_to.admin == request.user) or job_card.is_general_assignment
         
         if not can_edit:
             return JsonResponse({'error': 'Permission denied'}, status=403)

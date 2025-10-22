@@ -36,7 +36,13 @@ A comprehensive Django-based staff management system with **AI-powered chatbot**
 - **Social Features**: Internal communication and collaboration with persistent chat
 - **Google Drive Integration**: Document and media sharing capabilities with OAuth 2.0
 - **Communication Logs**: Track all customer interactions
-- **Smart Notifications**: Context-aware notifications with sound alerts and dismissal tracking
+- **Smart Notifications**: 
+  - Context-aware notifications with sound alerts and dismissal tracking
+  - **Clickable Redirects**: All notifications redirect to relevant pages
+  - **Role-based URLs**: Admin, Manager, and Employee get role-appropriate links
+  - **Beautiful UI**: Color-coded gradient notifications for each type
+  - **Action Buttons**: "View Request", "View Task", "View Message" on all notifications
+  - **Admin Notifications**: Complete notification system for all admin events
 - **Avatar System**: Profile pictures with fallback to default images
 
 ### 🎯 Management Features
@@ -175,21 +181,72 @@ docker-compose -f docker-compose.prod.yml up -d
 
 ## 🔧 Recent Updates & Fixes
 
-### ✅ Complete System Overhaul (Latest)
-- **Fixed Messaging System**: Complete overhaul of chat functionality with persistent messages
-- **Smart Notifications**: Read tracking, sound alerts, and clickable toast notifications
-- **Avatar System**: Fixed broken avatar images and profile picture display
-- **Google Drive Integration**: Fully functional OAuth 2.0 integration with file sharing
-- **WebSocket Optimization**: Enhanced real-time communication with proper error handling
-- **UI/UX Improvements**: Compact notifications, working redirects, and better user experience
+### ✨ Latest Features (Production Ready)
+
+#### 🔔 Complete Notification System Overhaul
+- **Admin Notifications**: Full notification support for all admin users
+  - Leave request notifications (employee & manager leave applications)
+  - Task assignment notifications (job cards assigned by managers)
+  - Task update notifications (status changes by employees/managers)
+  - Customer addition notifications (new customers added to system)
+  - Chat message notifications (direct messages and group chats)
+
+- **Clickable Redirects**: Every notification now redirects to the relevant page
+  - 🟠 Leave Requests → Leave approval page (role-specific)
+  - 🔵 Task Assignments → Job card dashboard
+  - 🔷 Task Updates → Task detail pages
+  - 🟢 Customer Additions → Customer edit/list pages
+  - ⚫ Messages → Chat rooms
+
+- **Role-Based URLs**: Smart URL generation
+  - Admin users see admin-specific pages
+  - Managers see manager dashboards
+  - Employees see employee-specific views
+
+- **Beautiful UI**: Color-coded gradient notifications
+  - Orange gradient for leave requests
+  - Blue gradient for task assignments
+  - Teal gradient for task updates
+  - Green gradient for customer additions
+  - Gray gradient for messages
+  - Purple gradient for job updates
+
+#### ✅ Previous System Improvements
+- **Messaging System**: Complete chat functionality with persistent messages
+- **Read Tracking**: Track notification and message read status
+- **Avatar System**: Profile pictures with fallback to default images
+- **Google Drive Integration**: OAuth 2.0 integration with file sharing
+- **WebSocket Optimization**: Enhanced real-time communication
+- **Sound Alerts**: Type-specific notification sounds
 
 ### 🛠️ Technical Improvements
-- **Database Schema**: Added `is_read` and `read_at` fields to notification models
-- **API Enhancements**: New `/api/notifications/mark-read/` endpoint for notification management
-- **Frontend Logic**: Session-based notification tracking to prevent re-display
-- **Performance**: Optimized message ordering and WebSocket message broadcasting
-- **Security**: Enhanced CSRF protection and authentication handling
-- **Error Handling**: Comprehensive error handling for WebSocket connections and API calls
+- **Database Schema**: 
+  - Added `NotificationAdmin` model for admin notifications
+  - Added `is_read` and `read_at` fields to all notification models
+  - Migration: `0005_add_notification_admin.py`
+
+- **API Enhancements**: 
+  - `/api/notifications/pending/` - Get unread notifications (all user types)
+  - `/api/notifications/mark-read/` - Mark notifications as read
+  - `/api/notifications/send/` - Send notifications to users
+
+- **Frontend Features**:
+  - Action buttons on all notification types
+  - Session-based notification tracking (prevents duplicates)
+  - Smart redirect handling with role-based URLs
+  - Gradient CSS styles for visual distinction
+
+- **Backend Features**:
+  - URL helper functions for role-appropriate redirects
+  - Comprehensive notification triggers for all events
+  - WebSocket integration with full notification data
+  - Centralized notification management in `notification_helpers.py`
+
+- **Performance & Security**:
+  - Optimized WebSocket message broadcasting
+  - Enhanced CSRF protection
+  - Comprehensive error handling
+  - No additional database queries for URL generation
 
 ## 🔧 Configuration
 
@@ -227,6 +284,7 @@ GOOGLE_OAUTH_CLIENT_SECRET=your-google-client-secret
 - **Throughput**: 100+ requests/second
 - **Concurrent Users**: 500+ supported
 - **AI Processing**: <2s for field reports
+- **Notification Delivery**: Real-time via WebSocket
 - **Uptime**: 99.9% with health monitoring
 - **Memory Usage**: Optimized with multi-level caching
 
@@ -245,14 +303,17 @@ GOOGLE_OAUTH_CLIENT_SECRET=your-google-client-secret
 # Production setup
 python manage.py setup_production
 
+# Database migrations (IMPORTANT: Run after deployment)
+python manage.py migrate
+
 # System health check
 python manage.py health_check --detailed
 
-# Performance testing
-python manage.py performance_test --requests 1000 --concurrent 20
+# Collect static files for production
+python manage.py collectstatic --noinput
 
-# AI field processor test
-python -c "from services.ai_field_processor import test_field_processor; test_field_processor()"
+# Create superuser
+python manage.py createsuperuser
 ```
 
 ## 🐳 Docker Deployment
@@ -335,16 +396,168 @@ Axpect_SMS_version2/
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## 🔔 Notification System Guide
+
+### Notification Types & Redirects
+
+| Event | Notification Type | Admin | Manager | Employee |
+|-------|------------------|-------|---------|----------|
+| Leave Request | `leave_application` | ✅ | ✅ | ❌ |
+| Task Assignment | `task_assignment` | ✅ | ✅ | ✅ |
+| Task Update | `task_update` | ✅ | ✅ | ✅ |
+| Customer Addition | `customer_addition` | ✅ | ❌ | ❌ |
+| Chat Message | `message` | ✅ | ✅ | ✅ |
+
+### How Notifications Work
+
+1. **Event Occurs** (e.g., employee applies for leave)
+2. **Backend Creates Notification** with role-specific redirect URL
+3. **WebSocket Delivers** notification in real-time
+4. **User Sees Popup** with color-coded design and action button
+5. **Click Action Button** → Redirects to relevant page
+
+### Testing Notifications
+
+```bash
+# Test Leave Request
+1. Login as employee → Apply for leave
+2. Login as admin → See orange notification
+3. Click "View Request" → Redirects to leave approval page
+
+# Test Task Assignment  
+1. Login as manager → Assign job card
+2. Login as admin → See blue notification
+3. Click "View Task" → Redirects to job card dashboard
+
+# Test Message
+1. Send chat message
+2. Recipient sees gray notification
+3. Click "View Message" → Opens chat room
+```
+
+## 🚀 Production Deployment Checklist
+
+### Pre-Deployment
+- [ ] Set `DEBUG=False` in production settings
+- [ ] Configure production database (PostgreSQL recommended)
+- [ ] Set up Redis for caching and WebSockets
+- [ ] Configure email settings for notifications
+- [ ] Set up AI API keys (OpenAI/Gemini)
+- [ ] Configure Google Drive OAuth credentials
+- [ ] Set strong `SECRET_KEY`
+- [ ] Configure `ALLOWED_HOSTS`
+
+### Deployment Steps
+
+```bash
+# 1. Clone repository
+git clone <repository-url>
+cd Axpect_SMS_version2
+
+# 2. Create and activate virtual environment
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate     # Windows
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Set environment variables
+cp .env.example .env
+# Edit .env with your production settings
+
+# 5. Run migrations (IMPORTANT)
+python manage.py migrate
+
+# 6. Create superuser
+python manage.py createsuperuser
+
+# 7. Collect static files
+python manage.py collectstatic --noinput
+
+# 8. Test configuration
+python manage.py check --deploy
+
+# 9. Start production server
+daphne -b 0.0.0.0 -p 8000 axpect_tech_config.asgi:application
+
+# 10. Start Celery workers (in separate terminals)
+celery -A axpect_tech_config worker -l info
+celery -A axpect_tech_config beat -l info
+```
+
+### Docker Deployment
+
+```bash
+# Production deployment with Docker
+docker-compose -f docker-compose.prod.yml up -d
+
+# Check logs
+docker-compose logs -f
+
+# Run migrations
+docker-compose exec web python manage.py migrate
+
+# Create superuser
+docker-compose exec web python manage.py createsuperuser
+```
+
+### Post-Deployment Verification
+
+```bash
+# Check system health
+curl http://your-domain/health/
+
+# Test WebSocket connection
+# Open browser console and check WebSocket connection
+
+# Verify notifications
+# Test each notification type as per testing guide above
+
+# Check Celery tasks
+celery -A axpect_tech_config inspect active
+
+# Monitor logs
+tail -f logs/django.log
+```
+
 ## 🆘 Support & Documentation
 
-- **Production Guide**: `PRODUCTION_DEPLOYMENT_GUIDE.md`
-- **Project Documentation**: `PROJECT_DOCUMENTATION.md`
 - **Health Monitoring**: `/health/` endpoint
-- **API Documentation**: `/api/` endpoints
-- **Metrics Dashboard**: Grafana at `:3000`
+- **API Documentation**: `/api/` endpoints  
+- **Admin Panel**: `/admin/`
+- **Notification API**: `/api/notifications/`
+- **WebSocket**: `ws://your-domain/ws/social/notifications/`
+
+## 📝 Important Notes
+
+### Database Migrations
+The system requires the `NotificationAdmin` migration:
+```bash
+# This migration is critical for admin notifications
+python manage.py migrate main_app 0005_add_notification_admin
+```
+
+### WebSocket Configuration
+For production, ensure:
+- Daphne is running (not Django's development server)
+- Redis is configured for channel layers
+- ASGI application is properly configured
+
+### Security Checklist
+- ✅ HTTPS enabled
+- ✅ HSTS headers configured
+- ✅ CSRF protection enabled
+- ✅ XSS protection enabled
+- ✅ SQL injection protection (Django ORM)
+- ✅ Rate limiting configured
+- ✅ Secure session cookies
+- ✅ Strong password requirements
 
 ---
 
 **🚀 Axpect Technologies** - *Empowering businesses with AI-driven staff management solutions*
 
-**Ready for production deployment with enhanced AI capabilities!**
+**✅ Production-Ready** | **🔔 Full Notification System** | **🤖 AI-Powered** | **🔄 Real-Time Updates**
+
+**Version 2.0 - Ready for Enterprise Deployment!**

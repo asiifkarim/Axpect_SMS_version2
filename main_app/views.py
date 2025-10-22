@@ -448,6 +448,8 @@ def customers_list(request):
 
 @csrf_exempt
 def customers_create(request):
+    from main_app.notification_helpers import notify_customer_addition
+    
     if request.method != 'POST':
         return JsonResponse({'error': 'Invalid method'}, status=405)
     try:
@@ -462,6 +464,11 @@ def customers_create(request):
             active=payload.get('active', True),
             owner_staff=request.user.employee if request.user.is_authenticated and hasattr(request.user, 'employee') else None,
         )
+        
+        # Notify admin about the customer addition (only if created by employee/manager)
+        if request.user.is_authenticated and request.user.user_type in ['2', '3']:
+            notify_customer_addition(c, request.user)
+        
         return JsonResponse({'id': c.id})
     except Exception as exc:
         return JsonResponse({'error': str(exc)}, status=400)
