@@ -99,7 +99,7 @@ cp .env.example .env
 python manage.py makemigrations
 python manage.py makemigrations main_app
 python manage.py migrate main_app
-
+python manage.py migrate
 # Create superuser
 python manage.py createsuperuser
 

@@ -112,15 +112,7 @@
                     </div>
                     <div class="message-bubble bg-white rounded-lg p-3 shadow-sm border">
                         <div class="markdown-content">
-                            <p class="text-gray-800">👋 Hello <strong>{{ user_name }}</strong>! I'm your AI assistant for the Staff Management System.</p>
-                            <p class="text-gray-600 mt-2">I can help you with:</p>
-                            <ul class="text-gray-600 text-sm">
-                                <li>🔹 <strong>Task Management</strong>: Create, assign, and track tasks</li>
-                                <li>🔹 <strong>Attendance</strong>: Check attendance records and reports</li>
-                                <li>🔹 <strong>Employee Info</strong>: View employee details and team information</li>
-                                <li>🔹 <strong>General Queries</strong>: Answer questions about the system</li>
-                            </ul>
-                            <p class="text-gray-600 mt-2">Try asking: <em>"Assign a task to Ali to complete the project report"</em> or <em>"Show my attendance"</em></p>
+                            <p class="text-gray-800">Hello <strong>{{ user_name }}</strong>. How can I help?</p>
                         </div>
                         <div class="text-xs text-gray-400 mt-2">
                             <i class="fas fa-clock"></i> Just now
@@ -168,25 +160,6 @@
                     </button>
                 </form>
                 
-                <!-- Quick Actions -->
-                <div class="mt-3 flex flex-wrap gap-2">
-                    <button class="quick-action px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition-colors" 
-                            data-message="Show my tasks">
-                        📋 My Tasks
-                    </button>
-                    <button class="quick-action px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition-colors" 
-                            data-message="Show my attendance">
-                        📅 My Attendance
-                    </button>
-                    <button class="quick-action px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition-colors" 
-                            data-message="List all employees">
-                        👥 All Employees
-                    </button>
-                    <button class="quick-action px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition-colors" 
-                            data-message="Help">
-                        ❓ Help
-                    </button>
-                </div>
             </div>
         </div>
     </div>
@@ -200,7 +173,27 @@
                 this.sendButton = document.getElementById('sendButton');
                 this.typingIndicator = document.getElementById('typingIndicator');
                 
+                // Session management
+                this.sessionId = this.getSessionId();
+                
                 this.initializeEventListeners();
+            }
+            
+            getSessionId() {
+                // Get session ID from template or localStorage
+                const templateSessionId = '{{ session_id }}';
+                if (templateSessionId && templateSessionId !== '{{ session_id }}') {
+                    localStorage.setItem('chatbot_session_id', templateSessionId);
+                    return templateSessionId;
+                }
+                
+                // Try to get from localStorage
+                return localStorage.getItem('chatbot_session_id');
+            }
+            
+            setSessionId(sessionId) {
+                this.sessionId = sessionId;
+                localStorage.setItem('chatbot_session_id', sessionId);
             }
             
             initializeEventListeners() {
@@ -210,14 +203,6 @@
                     this.sendMessage();
                 });
                 
-                // Quick action buttons
-                document.querySelectorAll('.quick-action').forEach(button => {
-                    button.addEventListener('click', () => {
-                        const message = button.getAttribute('data-message');
-                        this.messageInput.value = message;
-                        this.sendMessage();
-                    });
-                });
                 
                 // Enter key handling
                 this.messageInput.addEventListener('keypress', (e) => {
@@ -243,14 +228,19 @@
                     // Show typing indicator
                     this.showTypingIndicator();
                     
-                    // Send message to backend
+                    // Send message to backend with session ID
+                    const requestData = { message: message };
+                    if (this.sessionId) {
+                        requestData.session_id = this.sessionId;
+                    }
+                    
                     const response = await fetch('/chatbot/api/chat/', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'X-CSRFToken': this.getCSRFToken()
                         },
-                        body: JSON.stringify({ message: message })
+                        body: JSON.stringify(requestData)
                     });
                     
                     const data = await response.json();
@@ -260,6 +250,11 @@
                     
                     if (data.success) {
                         this.addMessage(data.response, 'bot');
+                        
+                        // Update session ID if provided
+                        if (data.session_id && data.session_id !== this.sessionId) {
+                            this.setSessionId(data.session_id);
+                        }
                     } else {
                         this.addMessage(data.response || 'Sorry, I encountered an error. Please try again.', 'bot', true);
                     }

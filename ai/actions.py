@@ -51,6 +51,16 @@ def execute_action(action_type: str, parameters: Dict[str, Any], user: User) -> 
             return create_customer(parameters, user)
         elif action_type == 'log_communication':
             return log_communication(parameters, user)
+        elif action_type == 'create_jobcard':
+            return create_jobcard(parameters, user)
+        elif action_type == 'get_jobcard':
+            return get_jobcard(parameters, user)
+        elif action_type == 'update_jobcard':
+            return update_jobcard(parameters, user)
+        elif action_type == 'delete_jobcard':
+            return delete_jobcard(parameters, user)
+        elif action_type == 'list_jobcards':
+            return list_jobcards(parameters, user)
         else:
             return {
                 'success': False,
@@ -62,6 +72,36 @@ def execute_action(action_type: str, parameters: Dict[str, Any], user: User) -> 
             'success': False,
             'error': str(e)
         }
+
+
+def is_admin_or_superuser(user: User) -> bool:
+    """Check if user is admin or superuser"""
+    return user.user_type == '1' or user.is_superuser
+
+
+def create_single_jobcard(employee, parameters: Dict[str, Any], user: User):
+    """Helper function to create a single job card for an employee"""
+    try:
+        # Get job card details
+        description = parameters.get('description', 'General task')
+        job_type = parameters.get('type', 'VISIT')
+        priority = parameters.get('priority', 'MEDIUM')
+        status = parameters.get('status', 'PENDING')
+        
+        # Create the job card
+        jobcard = JobCard.objects.create(
+            description=description,
+            type=job_type,
+            priority=priority,
+            status=status,
+            assigned_to=employee,
+            assigned_by=user
+        )
+        
+        return jobcard
+    except Exception as e:
+        logger.error(f"Error creating job card for {employee}: {str(e)}")
+        return None
 
 
 def find_employee_by_name(name: str) -> Optional[Employee]:
@@ -204,6 +244,370 @@ def assign_jobcard(parameters: Dict[str, Any], user: User) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+def create_jobcard(parameters: Dict[str, Any], user: User) -> Dict[str, Any]:
+    """Create a new job card with all fields"""
+    if not is_admin_or_superuser(user):
+        return {'success': False, 'error': 'Insufficient permissions to create job cards'}
+    
+    try:
+        # Get employee by ID or name
+        employee_id = parameters.get('employee_id')
+        employee_name = parameters.get('employee_name')
+        
+        employee = None
+        if employee_id:
+            try:
+                employee = Employee.objects.get(id=employee_id)
+            except Employee.DoesNotExist:
+                return {'success': False, 'error': 'Employee not found by ID'}
+        elif employee_name:
+            if employee_name == 'all_employees':
+                # Create job cards for all employees
+                all_employees = Employee.objects.all()
+                if not all_employees.exists():
+                    return {'success': False, 'error': 'No employees found in the system'}
+                
+                created_jobcards = []
+                for emp in all_employees:
+                    jobcard = create_single_jobcard(emp, parameters, user)
+                    if jobcard:
+                        created_jobcards.append({
+                            'id': jobcard.id,
+                            'jobcard_number': jobcard.job_card_number,
+                            'employee': f"{emp.admin.first_name} {emp.admin.last_name}"
+                        })
+                
+                return {
+                    'success': True,
+                    'message': f'Created {len(created_jobcards)} job cards for all employees',
+                    'jobcards': created_jobcards,
+                    'total_created': len(created_jobcards)
+                }
+            
+            elif employee_name == 'random':
+                # Create job card for a random employee
+                all_employees = Employee.objects.all()
+                if not all_employees.exists():
+                    return {'success': False, 'error': 'No employees found in the system'}
+                
+                import random
+                random_employee = random.choice(all_employees)
+                jobcard = create_single_jobcard(random_employee, parameters, user)
+                
+                if jobcard:
+                    return {
+                        'success': True,
+                        'jobcard_id': jobcard.id,
+                        'jobcard_number': jobcard.job_card_number,
+                        'message': f'Job card {jobcard.job_card_number} created successfully for {random_employee.admin.first_name} {random_employee.admin.last_name} (randomly selected)'
+                    }
+                else:
+                    return {'success': False, 'error': 'Failed to create job card for random employee'}
+            else:
+                employee = find_employee_by_name(employee_name)
+                if not employee:
+                    return {'success': False, 'error': f'Could not find employee with name "{employee_name}"'}
+        else:
+            return {'success': False, 'error': 'Please specify an employee name or ID'}
+        
+        # Get customer if specified
+        customer = None
+        customer_id = parameters.get('customer_id')
+        customer_name = parameters.get('customer_name')
+        if customer_id:
+            try:
+                customer = Customer.objects.get(id=customer_id)
+            except Customer.DoesNotExist:
+                return {'success': False, 'error': 'Customer not found by ID'}
+        elif customer_name:
+            try:
+                customer = Customer.objects.filter(name__icontains=customer_name).first()
+                if not customer:
+                    return {'success': False, 'error': f'Could not find customer with name "{customer_name}"'}
+            except:
+                return {'success': False, 'error': 'Error finding customer'}
+        
+        # Get city if specified
+        city = None
+        city_id = parameters.get('city_id')
+        city_name = parameters.get('city_name')
+        if city_id:
+            try:
+                city = City.objects.get(id=city_id)
+            except City.DoesNotExist:
+                return {'success': False, 'error': 'City not found by ID'}
+        elif city_name:
+            try:
+                city = City.objects.filter(name__icontains=city_name).first()
+            except:
+                pass  # City is optional
+        
+        # Parse due date
+        due_date = None
+        if parameters.get('due_date'):
+            try:
+                from datetime import datetime
+                due_date = datetime.fromisoformat(parameters['due_date'])
+            except:
+                due_date = None
+        
+        # Create job card
+        jobcard = JobCard.objects.create(
+            assigned_to=employee,
+            assigned_by=user,
+            description=parameters.get('description', ''),
+            type=parameters.get('type', 'VISIT'),
+            priority=parameters.get('priority', 'MEDIUM'),
+            status=parameters.get('status', 'PENDING'),
+            due_date=due_date,
+            customer=customer,
+            city=city
+        )
+        
+        return {
+            'success': True,
+            'jobcard_id': jobcard.id,
+            'jobcard_number': jobcard.job_card_number,
+            'message': f'Job card {jobcard.job_card_number} created successfully for {employee.admin.get_full_name()}'
+        }
+        
+    except Exception as e:
+        logger.error(f"Error creating job card: {str(e)}")
+        return {'success': False, 'error': f'Error creating job card: {str(e)}'}
+
+
+def get_jobcard(parameters: Dict[str, Any], user: User) -> Dict[str, Any]:
+    """Retrieve job card by ID or number"""
+    if not is_admin_or_superuser(user):
+        return {'success': False, 'error': 'Insufficient permissions to view job cards'}
+    
+    try:
+        jobcard = None
+        jobcard_id = parameters.get('jobcard_id')
+        jobcard_number = parameters.get('jobcard_number')
+        
+        if jobcard_id:
+            try:
+                jobcard = JobCard.objects.get(id=jobcard_id)
+            except JobCard.DoesNotExist:
+                return {'success': False, 'error': 'Job card not found by ID'}
+        elif jobcard_number:
+            # Extract ID from job card number (format: JC-XXXX)
+            try:
+                if jobcard_number.startswith('JC-'):
+                    id_part = jobcard_number.split('-')[1]
+                    jobcard = JobCard.objects.get(id=int(id_part))
+                else:
+                    return {'success': False, 'error': 'Invalid job card number format. Use JC-XXXX'}
+            except (ValueError, JobCard.DoesNotExist):
+                return {'success': False, 'error': 'Job card not found by number'}
+        else:
+            return {'success': False, 'error': 'Please specify job card ID or number'}
+        
+        # Format job card details
+        jobcard_data = {
+            'id': jobcard.id,
+            'jobcard_number': jobcard.job_card_number,
+            'description': jobcard.description,
+            'type': jobcard.get_type_display(),
+            'priority': jobcard.get_priority_display(),
+            'status': jobcard.get_status_display(),
+            'assigned_to': jobcard.assigned_to.admin.get_full_name() if jobcard.assigned_to else 'Unassigned',
+            'assigned_by': jobcard.assigned_by.get_full_name() if jobcard.assigned_by else 'System',
+            'customer': jobcard.customer.name if jobcard.customer else 'No customer',
+            'city': jobcard.city.name if jobcard.city else 'No city',
+            'created_date': jobcard.created_date.isoformat(),
+            'due_date': jobcard.due_date.isoformat() if jobcard.due_date else None,
+            'updated_at': jobcard.updated_at.isoformat()
+        }
+        
+        return {
+            'success': True,
+            'jobcard': jobcard_data,
+            'message': f'Job card {jobcard.job_card_number} details retrieved'
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting job card: {str(e)}")
+        return {'success': False, 'error': f'Error retrieving job card: {str(e)}'}
+
+
+def update_jobcard(parameters: Dict[str, Any], user: User) -> Dict[str, Any]:
+    """Update existing job card"""
+    if not is_admin_or_superuser(user):
+        return {'success': False, 'error': 'Insufficient permissions to update job cards'}
+    
+    try:
+        jobcard_id = parameters.get('jobcard_id')
+        if not jobcard_id:
+            return {'success': False, 'error': 'Job card ID is required'}
+        
+        try:
+            jobcard = JobCard.objects.get(id=jobcard_id)
+        except JobCard.DoesNotExist:
+            return {'success': False, 'error': 'Job card not found'}
+        
+        # Update fields if provided
+        if 'description' in parameters:
+            jobcard.description = parameters['description']
+        if 'type' in parameters:
+            jobcard.type = parameters['type']
+        if 'priority' in parameters:
+            jobcard.priority = parameters['priority']
+        if 'status' in parameters:
+            jobcard.status = parameters['status']
+        if 'due_date' in parameters and parameters['due_date']:
+            try:
+                from datetime import datetime
+                jobcard.due_date = datetime.fromisoformat(parameters['due_date'])
+            except:
+                pass  # Keep existing due_date if parsing fails
+        
+        # Update employee if specified
+        if 'employee_id' in parameters or 'employee_name' in parameters:
+            employee_id = parameters.get('employee_id')
+            employee_name = parameters.get('employee_name')
+            
+            employee = None
+            if employee_id:
+                try:
+                    employee = Employee.objects.get(id=employee_id)
+                except Employee.DoesNotExist:
+                    return {'success': False, 'error': 'Employee not found by ID'}
+            elif employee_name:
+                employee = find_employee_by_name(employee_name)
+                if not employee:
+                    return {'success': False, 'error': f'Could not find employee with name "{employee_name}"'}
+            
+            jobcard.assigned_to = employee
+        
+        # Update customer if specified
+        if 'customer_id' in parameters or 'customer_name' in parameters:
+            customer_id = parameters.get('customer_id')
+            customer_name = parameters.get('customer_name')
+            
+            customer = None
+            if customer_id:
+                try:
+                    customer = Customer.objects.get(id=customer_id)
+                except Customer.DoesNotExist:
+                    return {'success': False, 'error': 'Customer not found by ID'}
+            elif customer_name:
+                customer = Customer.objects.filter(name__icontains=customer_name).first()
+                if not customer:
+                    return {'success': False, 'error': f'Could not find customer with name "{customer_name}"'}
+            
+            jobcard.customer = customer
+        
+        # Update city if specified
+        if 'city_id' in parameters or 'city_name' in parameters:
+            city_id = parameters.get('city_id')
+            city_name = parameters.get('city_name')
+            
+            city = None
+            if city_id:
+                try:
+                    city = City.objects.get(id=city_id)
+                except City.DoesNotExist:
+                    return {'success': False, 'error': 'City not found by ID'}
+            elif city_name:
+                city = City.objects.filter(name__icontains=city_name).first()
+            
+            jobcard.city = city
+        
+        jobcard.save()
+        
+        return {
+            'success': True,
+            'jobcard_id': jobcard.id,
+            'jobcard_number': jobcard.job_card_number,
+            'message': f'Job card {jobcard.job_card_number} updated successfully'
+        }
+        
+    except Exception as e:
+        logger.error(f"Error updating job card: {str(e)}")
+        return {'success': False, 'error': f'Error updating job card: {str(e)}'}
+
+
+def delete_jobcard(parameters: Dict[str, Any], user: User) -> Dict[str, Any]:
+    """Delete job card by ID"""
+    if not is_admin_or_superuser(user):
+        return {'success': False, 'error': 'Insufficient permissions to delete job cards'}
+    
+    try:
+        jobcard_id = parameters.get('jobcard_id')
+        if not jobcard_id:
+            return {'success': False, 'error': 'Job card ID is required'}
+        
+        try:
+            jobcard = JobCard.objects.get(id=jobcard_id)
+            jobcard_number = jobcard.job_card_number
+            jobcard.delete()
+            
+            return {
+                'success': True,
+                'message': f'Job card {jobcard_number} deleted successfully'
+            }
+        except JobCard.DoesNotExist:
+            return {'success': False, 'error': 'Job card not found'}
+        
+    except Exception as e:
+        logger.error(f"Error deleting job card: {str(e)}")
+        return {'success': False, 'error': f'Error deleting job card: {str(e)}'}
+
+
+def list_jobcards(parameters: Dict[str, Any], user: User) -> Dict[str, Any]:
+    """List all job cards with filters"""
+    if not is_admin_or_superuser(user):
+        return {'success': False, 'error': 'Insufficient permissions to list job cards'}
+    
+    try:
+        # Build query with filters
+        jobcards = JobCard.objects.all().select_related('assigned_to__admin', 'assigned_by', 'customer', 'city')
+        
+        # Apply filters
+        if parameters.get('status'):
+            jobcards = jobcards.filter(status=parameters['status'])
+        if parameters.get('assigned_to_id'):
+            jobcards = jobcards.filter(assigned_to_id=parameters['assigned_to_id'])
+        if parameters.get('customer_id'):
+            jobcards = jobcards.filter(customer_id=parameters['customer_id'])
+        if parameters.get('priority'):
+            jobcards = jobcards.filter(priority=parameters['priority'])
+        if parameters.get('type'):
+            jobcards = jobcards.filter(type=parameters['type'])
+        
+        # Order by creation date (newest first)
+        jobcards = jobcards.order_by('-created_date')[:50]  # Limit to 50
+        
+        jobcard_list = []
+        for jc in jobcards:
+            jobcard_list.append({
+                'id': jc.id,
+                'jobcard_number': jc.job_card_number,
+                'description': jc.description[:100] if jc.description else '',
+                'type': jc.get_type_display(),
+                'priority': jc.get_priority_display(),
+                'status': jc.get_status_display(),
+                'assigned_to': jc.assigned_to.admin.get_full_name() if jc.assigned_to else 'Unassigned',
+                'customer': jc.customer.name if jc.customer else 'No customer',
+                'city': jc.city.name if jc.city else 'No city',
+                'created_date': jc.created_date.isoformat(),
+                'due_date': jc.due_date.isoformat() if jc.due_date else None
+            })
+        
+        return {
+            'success': True,
+            'jobcards': jobcard_list,
+            'total': len(jobcard_list),
+            'message': f'📋 Found {len(jobcard_list)} job card(s).'
+        }
+        
+    except Exception as e:
+        logger.error(f"Error listing job cards: {str(e)}")
+        return {'success': False, 'error': f'Error retrieving job cards: {str(e)}'}
+
+
 def get_tasks(parameters: Dict[str, Any], user: User) -> Dict[str, Any]:
     """Get tasks for a user"""
     try:
@@ -237,7 +641,7 @@ def get_tasks(parameters: Dict[str, Any], user: User) -> Dict[str, Any]:
                 return {'success': False, 'message': 'Employee profile not found'}
         else:
             # Admin/Manager querying tasks - show all or filtered
-            if user.user_type in ['1', '2']:
+            if is_admin_or_superuser(user):
                 tasks = EmployeeTask.objects.all().exclude(status='completed').order_by('-assigned_date')[:20]
                 task_list = []
                 for task in tasks:
@@ -279,7 +683,7 @@ def get_attendance(parameters: Dict[str, Any], user: User) -> Dict[str, Any]:
                 return {'success': False, 'message': 'Employee profile not found'}
         elif employee_name:
             # Querying someone else's attendance
-            if user.user_type not in ['1', '2']:
+            if not is_admin_or_superuser(user):
                 return {'success': False, 'message': 'You can only view your own attendance'}
             employee = find_employee_by_name(employee_name)
             if not employee:
@@ -392,20 +796,11 @@ def list_employees(parameters: Dict[str, Any], user: User) -> Dict[str, Any]:
     """List all employees"""
     try:
         # Filter employees based on user permissions
-        if user.user_type == '1':  # Admin - can see all
+        if is_admin_or_superuser(user):  # Admin/Superuser - can see all
             employees = Employee.objects.all().select_related('admin', 'department', 'division')
-        elif user.user_type == '2':  # Manager - see their division
-            try:
-                manager = user.manager
-                employees = Employee.objects.filter(division=manager.division).select_related('admin', 'department', 'division')
-            except:
-                employees = Employee.objects.none()
-        else:  # Employee - see same department
-            try:
-                employee = Employee.objects.get(admin=user)
-                employees = Employee.objects.filter(department=employee.department).select_related('admin', 'department', 'division')
-            except:
-                employees = Employee.objects.none()
+        else:
+            # Non-admin users - no access through chatbot
+            return {'success': False, 'message': 'Insufficient permissions to list employees'}
         
         employee_list = []
         for emp in employees[:50]:  # Limit to 50 employees
