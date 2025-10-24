@@ -306,7 +306,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             sender_name = f"{self.user.first_name} {self.user.last_name}".strip() or self.user.username
             
             # Determine group name for notification
-            if group.is_direct_message:
+            if group.group_type == 'DIRECT':
                 group_name = "sent you a message"
             else:
                 group_name = f"in {group.name}"
