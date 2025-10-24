@@ -303,7 +303,7 @@
     <script src="{% static 'plugins/toastr/toastr.min.js' %}"></script>
     
     <!-- Enhanced Notification System -->
-    <script src="{% static 'dist/js/notifications.js' %}?v=3"></script>
+    <script src="{% static 'dist/js/notifications.js' %}?v=10"></script>
     
     {% block custom_js %}
 
@@ -322,12 +322,15 @@
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws/social/notifications/`;
             
+            console.log('Attempting to connect to WebSocket:', wsUrl);
+            
             try {
                 const notificationSocket = new WebSocket(wsUrl);
                 
                 notificationSocket.onmessage = function(event) {
                     try {
                         const data = JSON.parse(event.data);
+                        console.log('WebSocket notification received:', data);
                         
                         if (data.type === 'notification' && data.notification) {
                             // Play notification sound based on type
@@ -343,10 +346,12 @@
                 };
                 
                 notificationSocket.onopen = function(event) {
-                    console.log('Notification WebSocket connected successfully');
+                    console.log('✅ Notification WebSocket connected successfully');
+                    window.notificationSocket = notificationSocket; // Store reference
                 };
                 
                 notificationSocket.onclose = function(event) {
+                    console.log('❌ Notification WebSocket disconnected:', event.code, event.reason);
                     console.log('Notification WebSocket connection closed');
                     // Attempt to reconnect after 5 seconds
                     setTimeout(function() {
@@ -358,14 +363,16 @@
                 };
                 
                 notificationSocket.onerror = function(error) {
-                    console.warn('WebSocket notification connection error:', error);
+                    console.error('❌ WebSocket error:', error);
+                    console.error('WebSocket connection failed. Check if Daphne server is running and WebSocket routing is configured.');
                 };
                 
                 // Store socket reference for cleanup
                 window.notificationSocket = notificationSocket;
                 
             } catch (error) {
-                console.warn('Failed to initialize notification WebSocket:', error);
+                console.error('❌ Failed to create WebSocket connection:', error);
+                console.error('Make sure you are running the server with Daphne: daphne -b 127.0.0.1 -p 8000 axpect_tech_config.asgi:application');
                 // Fallback to polling for notifications
                 console.log('Falling back to polling for notifications');
                 setInterval(function() {
@@ -381,9 +388,11 @@
                         .then(data => {
                             if (data.notifications && data.notifications.length > 0) {
                                 data.notifications.forEach(notification => {
+                                    // Use the notification type from the data, fallback to 'info'
+                                    const notificationType = notification.type || 'info';
                                     window.notificationManager.show(
                                         notification.message,
-                                        'info',
+                                        notificationType,
                                         notification.title || 'Notification'
                                     );
                                 });
@@ -392,6 +401,14 @@
                         .catch(error => console.warn('Polling notification error:', error));
                     }
                 }, 30000); // Poll every 30 seconds
+            }
+        } else {
+            console.warn('⚠️ WebSocket or notificationManager not available');
+            if (typeof WebSocket === 'undefined') {
+                console.warn('WebSocket not supported in this browser');
+            }
+            if (!window.notificationManager) {
+                console.warn('NotificationManager not initialized');
             }
         }
         
@@ -403,7 +420,7 @@
             
             try {
                 // Chat WebSocket will be initialized per chat room
-                console.log('Chat WebSocket will be initialized per chat room');
+                console.log('💬 Chat WebSocket will be initialized per chat room');
                 
             } catch (error) {
                 console.warn('Chat WebSocket setup note:', error);

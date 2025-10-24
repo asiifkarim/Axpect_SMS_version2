@@ -358,12 +358,33 @@ class NotificationManager {
     }
 
     show(message, type = 'info', title = null, duration = 5000, options = {}) {
+        console.log('🔔 NotificationManager.show called with:', { message, type, title, duration, options });
+        console.log('🔔 User type from body:', document.body.dataset.userType);
+        
+        // Check for duplicate notifications (same message and type within last 2 seconds)
+        const now = Date.now();
+        const duplicate = this.notifications.find(n => {
+            const timeDiff = now - parseInt(n.id.split('_')[1]);
+            return timeDiff < 2000 && n.element.querySelector('.toast-body').textContent === message;
+        });
+        
+        if (duplicate) {
+            console.log('🔔 Duplicate notification prevented:', message);
+            return duplicate.id;
+        }
+        
         const icons = {
             success: 'fas fa-check-circle',
             error: 'fas fa-exclamation-circle',
             warning: 'fas fa-exclamation-triangle',
             info: 'fas fa-info-circle',
-            job_assignment: 'fas fa-tasks'
+            message: 'fas fa-comment',
+            leave_application: 'fas fa-calendar-alt',
+            leave_status: 'fas fa-calendar-check',
+            attendance: 'fas fa-clock',
+            job_assignment: 'fas fa-tasks',
+            task_assignment: 'fas fa-tasks',
+            feedback: 'fas fa-comments'
         };
 
         const titles = {
@@ -371,8 +392,17 @@ class NotificationManager {
             error: title || 'Error',
             warning: title || 'Warning',
             info: title || 'Information',
-            job_assignment: title || 'Job Assignment'
+            message: title || 'New Message',
+            leave_application: title || 'Leave Application',
+            leave_status: title || 'Leave Status',
+            attendance: title || 'Attendance',
+            job_assignment: title || 'Job Assignment',
+            task_assignment: title || 'Task Assignment',
+            feedback: title || 'Feedback'
         };
+        
+        console.log('🔔 Using title:', titles[type], 'for type:', type);
+        console.log('🔔 Available types in titles:', Object.keys(titles));
 
         // Play notification sound based on type
         const soundType = options.soundType || this.getSoundTypeFromNotificationType(type);
@@ -390,7 +420,7 @@ class NotificationManager {
                     <i class="${icons[type] || icons.info}"></i>
                     ${titles[type]}
                 </div>
-                <button class="toast-close" onclick="notificationManager.hide('${toastId}')">&times;</button>
+                <button class="toast-close" onclick="console.log('🔔 Close button clicked for:', '${toastId}'); notificationManager.hide('${toastId}')">&times;</button>
             </div>
             <div class="toast-body">${message}</div>
             ${duration > 0 ? '<div class="toast-progress"></div>' : ''}
@@ -402,7 +432,10 @@ class NotificationManager {
         // Auto-hide after duration
         if (duration > 0) {
             setTimeout(() => {
-                this.hide(toastId);
+                // Only auto-hide if the notification still exists
+                if (this.notifications.find(n => n.id === toastId)) {
+                    this.hide(toastId);
+                }
             }, duration);
         }
 
@@ -415,16 +448,40 @@ class NotificationManager {
     }
 
     hide(toastId) {
-        const notification = this.notifications.find(n => n.id === toastId);
-        if (notification) {
-            notification.element.style.animation = 'slideOutRight 0.3s ease-in';
-            setTimeout(() => {
-                if (notification.element.parentNode) {
-                    notification.element.parentNode.removeChild(notification.element);
-                }
-                this.notifications = this.notifications.filter(n => n.id !== toastId);
-            }, 300);
+        console.log('Attempting to hide notification:', toastId);
+        
+        // First, try to find in the notifications array
+        let notification = this.notifications.find(n => n.id === toastId);
+        
+        // If not found in array, try to find the element directly in DOM
+        if (!notification) {
+            const element = document.getElementById(toastId);
+            if (element) {
+                console.log('Found notification element in DOM, removing directly');
+                element.style.animation = 'slideOutRight 0.3s ease-in';
+                setTimeout(() => {
+                    if (element.parentNode) {
+                        element.parentNode.removeChild(element);
+                        console.log('Notification removed from DOM');
+                    }
+                }, 300);
+                return;
+            } else {
+                console.warn('Notification not found in array or DOM:', toastId);
+                return;
+            }
         }
+        
+        console.log('Found notification to hide:', notification);
+        notification.element.style.animation = 'slideOutRight 0.3s ease-in';
+        setTimeout(() => {
+            if (notification.element.parentNode) {
+                notification.element.parentNode.removeChild(notification.element);
+                console.log('Notification removed from DOM');
+            }
+            this.notifications = this.notifications.filter(n => n.id !== toastId);
+            console.log('Notification removed from array');
+        }, 300);
     }
 
     addActionButtons(toast, actions) {
@@ -544,7 +601,7 @@ class NotificationManager {
         
         switch (data.type) {
             case 'leave_application':
-                this.show(data.message, data.level || 'warning', data.title || 'Leave Application', 7000, {
+                this.show(data.message, 'leave_application', data.title || 'Leave Application', 7000, {
                     className: 'leave-notification',
                     actions: [{
                         text: 'View Request',
@@ -558,7 +615,7 @@ class NotificationManager {
                 break;
                 
             case 'task_assignment':
-                this.show(data.message, data.level || 'info', data.title || 'Task Assignment', 7000, {
+                this.show(data.message, 'task_assignment', data.title || 'Task Assignment', 7000, {
                     className: 'task-assignment-notification',
                     actions: [{
                         text: 'View Task',
@@ -572,7 +629,7 @@ class NotificationManager {
                 break;
                 
             case 'task_update':
-                this.show(data.message, data.level || 'info', data.title || 'Task Update', 7000, {
+                this.show(data.message, 'task_assignment', data.title || 'Task Update', 7000, {
                     className: 'task-update-notification',
                     actions: [{
                         text: 'View Task',
@@ -586,7 +643,7 @@ class NotificationManager {
                 break;
                 
             case 'customer_addition':
-                this.show(data.message, data.level || 'success', data.title || 'New Customer', 7000, {
+                this.show(data.message, 'success', data.title || 'New Customer', 7000, {
                     className: 'customer-notification',
                     actions: [{
                         text: 'View Customer',
@@ -600,8 +657,9 @@ class NotificationManager {
                 break;
                 
             case 'message':
-                this.show(data.message, data.level || 'info', data.title || 'New Message', 7000, {
+                this.show(data.message, 'message', data.title || 'New Message', 7000, {
                     className: 'message-notification',
+                    redirectUrl: redirectUrl,
                     actions: [{
                         text: 'View Message',
                         className: 'btn-light btn-sm',
@@ -864,12 +922,17 @@ class NotificationManager {
                 list.innerHTML = notifications.slice(0, 5).map(notification => {
                     const icon = this.getNotificationIcon(notification.type);
                     const timeAgo = this.timeAgo(new Date(notification.created_at));
+                    const redirectUrl = notification.redirect_url || '#';
                     
                     return `
-                        <a href="#" class="dropdown-item notification-item" data-notification-id="${notification.id}">
+                        <a href="#" class="dropdown-item notification-item" 
+                           data-notification-id="${notification.id}" 
+                           data-redirect-url="${redirectUrl}"
+                           style="cursor: pointer;">
                             <i class="${icon} mr-2"></i>
                             <span class="notification-text">${notification.message}</span>
                             <span class="float-right text-muted text-sm">${timeAgo}</span>
+                            ${redirectUrl !== '#' ? '<i class="fas fa-external-link-alt float-right text-primary ml-2" style="font-size: 0.8em;"></i>' : ''}
                         </a>
                     `;
                 }).join('<div class="dropdown-divider"></div>');
@@ -881,7 +944,8 @@ class NotificationManager {
             item.addEventListener('click', (e) => {
                 e.preventDefault();
                 const notificationId = item.dataset.notificationId;
-                this.handleNotificationClick(notificationId);
+                const redirectUrl = item.dataset.redirectUrl;
+                this.handleNotificationClick(notificationId, redirectUrl);
             });
         });
     }
@@ -900,14 +964,78 @@ class NotificationManager {
     }
 
     // Handle notification click
-    handleNotificationClick(notificationId) {
-        // Mark as read and handle navigation
-        console.log('Notification clicked:', notificationId);
+    handleNotificationClick(notificationId, redirectUrl = null) {
+        console.log('Notification clicked:', notificationId, 'Redirect URL:', redirectUrl);
         
-        // You can add logic here to:
-        // 1. Mark notification as read
-        // 2. Navigate to relevant page
-        // 3. Show detailed notification
+        // Mark notification as read
+        this.markNotificationAsRead(notificationId);
+        
+        // Use provided redirect URL or get from notification data
+        if (redirectUrl && redirectUrl !== '#') {
+            // Navigate to the relevant page immediately
+            window.location.href = redirectUrl;
+        } else {
+            // Fallback to default notifications page
+            const userType = document.body.dataset.userType || '3';
+            let notificationUrl = '/employee/view/notification/';
+            
+            if (userType === '1') {
+                notificationUrl = '/admin/notifications/';
+            } else if (userType === '2') {
+                notificationUrl = '/manager/view/notification/';
+            }
+            
+            window.location.href = notificationUrl;
+        }
+    }
+
+    // Mark notification as read
+    markNotificationAsRead(notificationId) {
+        fetch('/api/notifications/mark-read/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': this.getCSRFToken(),
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                notification_id: notificationId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Notification marked as read:', notificationId);
+                // Reload the notification dropdown to update count
+                this.loadNotificationDropdown();
+            } else {
+                console.warn('Failed to mark notification as read:', data.error);
+            }
+        })
+        .catch(error => {
+            console.warn('Error marking notification as read:', error);
+        });
+    }
+
+    // Get notification data by ID
+    getNotificationData(notificationId) {
+        return fetch('/api/notifications/pending/', {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': this.getCSRFToken(),
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.notifications) {
+                return data.notifications.find(n => n.id == notificationId);
+            }
+            return null;
+        })
+        .catch(error => {
+            console.warn('Error getting notification data:', error);
+            return null;
+        });
     }
 
     // Time ago helper function

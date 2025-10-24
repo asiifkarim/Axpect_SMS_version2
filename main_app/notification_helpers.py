@@ -280,6 +280,12 @@ def notify_leave_status(leave_report, status, applicant_type='employee'):
         status_text = "approved" if status == 1 else "rejected"
         message = f"Your leave application for {leave_report.date} has been {status_text}"
         
+        # Get appropriate redirect URL for leave status
+        if applicant_type == 'employee':
+            redirect_url = '/employee/apply_leave/'  # Employee can view their leave history
+        else:
+            redirect_url = '/manager/apply_leave/'   # Manager can view their leave history
+        
         if applicant_type == 'employee':
             create_employee_notification(
                 employee=leave_report.employee,
@@ -287,7 +293,8 @@ def notify_leave_status(leave_report, status, applicant_type='employee'):
                 notification_type='leave_status',
                 level='success' if status == 1 else 'danger',
                 leave_id=leave_report.id,
-                status=status_text
+                status=status_text,
+                redirect_url=redirect_url
             )
         else:
             create_manager_notification(
@@ -296,7 +303,8 @@ def notify_leave_status(leave_report, status, applicant_type='employee'):
                 notification_type='leave_status',
                 level='success' if status == 1 else 'danger',
                 leave_id=leave_report.id,
-                status=status_text
+                status=status_text,
+                redirect_url=redirect_url
             )
         
         logger.info(f"Sent leave {status_text} notification")
@@ -329,7 +337,8 @@ def notify_checkin(employee, location=''):
                     message=message,
                     notification_type='attendance',
                     level='info',
-                    employee_id=employee.id
+                    employee_id=employee.id,
+                    redirect_url='/manager/take_attendance/'  # Manager can view attendance
                 )
         
         logger.info(f"Sent check-in notification for employee {employee.id}")
@@ -366,7 +375,8 @@ def notify_checkout(employee, location='', duration_hours=None):
                     message=message,
                     notification_type='attendance',
                     level='info',
-                    employee_id=employee.id
+                    employee_id=employee.id,
+                    redirect_url='/manager/take_attendance/'  # Manager can view attendance
                 )
         
         logger.info(f"Sent check-out notification for employee {employee.id}")
@@ -394,7 +404,8 @@ def notify_attendance_updated(employee, updated_by, notes=''):
             employee=employee,
             message=message,
             notification_type='attendance',
-            level='warning'
+            level='warning',
+            redirect_url='/employee/view_attendance/'  # Employee can view their attendance
         )
         
         logger.info(f"Sent attendance update notification to employee {employee.id}")
@@ -419,7 +430,8 @@ def notify_feedback_reply(feedback, user_type='employee'):
                 message=message,
                 notification_type='feedback',
                 level='info',
-                feedback_id=feedback.id
+                feedback_id=feedback.id,
+                redirect_url='/employee/feedback/'  # Employee can view their feedback
             )
         else:
             create_manager_notification(
@@ -427,7 +439,8 @@ def notify_feedback_reply(feedback, user_type='employee'):
                 message=message,
                 notification_type='feedback',
                 level='info',
-                feedback_id=feedback.id
+                feedback_id=feedback.id,
+                redirect_url='/manager/feedback/'  # Manager can view their feedback
             )
         
         logger.info(f"Sent feedback reply notification")

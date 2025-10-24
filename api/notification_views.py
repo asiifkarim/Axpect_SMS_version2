@@ -17,6 +17,42 @@ from main_app.models import (
     Employee, Manager, Admin, CustomUser
 )
 
+def get_redirect_url_for_notification(notification_type, user):
+    """Get appropriate redirect URL based on notification type and user type"""
+    if user.user_type == '1':  # Admin
+        if notification_type == 'leave_application':
+            return '/ceo/view_employee_leave/'
+        elif notification_type == 'task_assignment':
+            return '/admin/job-card-dashboard/'
+        elif notification_type == 'attendance':
+            return '/admin/view_attendance/'
+        elif notification_type == 'feedback':
+            return '/admin/feedback/'
+        else:
+            return '/admin/notifications/'
+    elif user.user_type == '2':  # Manager
+        if notification_type == 'leave_application':
+            return '/manager/view_employee_leave/'
+        elif notification_type == 'task_assignment':
+            return '/manager/job-card-dashboard/'
+        elif notification_type == 'attendance':
+            return '/manager/take_attendance/'
+        elif notification_type == 'feedback':
+            return '/manager/feedback/'
+        else:
+            return '/manager/view/notification/'
+    else:  # Employee
+        if notification_type == 'leave_status':
+            return '/employee/apply_leave/'
+        elif notification_type == 'task_assignment':
+            return '/employee/jobcards/'
+        elif notification_type == 'attendance':
+            return '/employee/view_attendance/'
+        elif notification_type == 'feedback':
+            return '/employee/feedback/'
+        else:
+            return '/employee/view/notification/'
+
 
 @login_required
 @require_http_methods(["GET"])
@@ -68,13 +104,17 @@ def pending_notifications(request):
                         'general': 'Notification'
                     }
                     
+                    # Get redirect URL based on notification type
+                    redirect_url = get_redirect_url_for_notification(notif_type, request.user)
+                    
                     notifications.append({
                         'id': notification.id,
                         'type': notif_type,
                         'title': titles.get(notif_type, 'Notification'),
                         'message': notification.message,
                         'created_at': notification.created_at.isoformat(),
-                        'level': level
+                        'level': level,
+                        'redirect_url': redirect_url
                     })
             except Admin.DoesNotExist:
                 pass
@@ -116,13 +156,17 @@ def pending_notifications(request):
                         'general': 'Notification'
                     }
                     
+                    # Get redirect URL based on notification type
+                    redirect_url = get_redirect_url_for_notification(notif_type, request.user)
+                    
                     notifications.append({
                         'id': notification.id,
                         'type': notif_type,
                         'title': titles.get(notif_type, 'Notification'),
                         'message': notification.message,
                         'created_at': notification.created_at.isoformat(),
-                        'level': level
+                        'level': level,
+                        'redirect_url': redirect_url
                     })
             except Manager.DoesNotExist:
                 pass
@@ -165,13 +209,17 @@ def pending_notifications(request):
                         'general': 'Notification'
                     }
                     
+                    # Get redirect URL based on notification type
+                    redirect_url = get_redirect_url_for_notification(notif_type, request.user)
+                    
                     notifications.append({
                         'id': notification.id,
                         'type': notif_type,
                         'title': titles.get(notif_type, 'Notification'),
                         'message': notification.message,
                         'created_at': notification.created_at.isoformat(),
-                        'level': level
+                        'level': level,
+                        'redirect_url': redirect_url
                     })
             except Employee.DoesNotExist:
                 pass
@@ -184,6 +232,9 @@ def pending_notifications(request):
             ).select_related('assigned_by', 'customer')
             
             for job_card in recent_assignments:
+                # Get redirect URL for job assignment
+                redirect_url = get_redirect_url_for_notification('task_assignment', request.user)
+                
                 notifications.append({
                     'id': f'job_{job_card.id}',
                     'type': 'job_assignment',
@@ -198,7 +249,8 @@ def pending_notifications(request):
                     },
                     'assigned_by': job_card.assigned_by.get_full_name() if job_card.assigned_by else 'System',
                     'created_at': job_card.created_date.isoformat(),
-                    'level': 'success'
+                    'level': 'success',
+                    'redirect_url': redirect_url
                 })
         except Exception as e:
             # Log the error but don't fail the entire request
