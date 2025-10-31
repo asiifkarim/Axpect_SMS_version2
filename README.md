@@ -152,7 +152,7 @@ docker-compose -f docker-compose.prod.yml up -d
 "Show details for employee John Doe"     
 "List all employees in sales department"
 ```
-
+      
 ### AI Field Report Example
 
 **Input**: "Met Sahil at Tallam Brothers, collected order for 5 bales of 40s cut, rate ₹215, took 2 cheques, will transfer funds online after 3 days"
