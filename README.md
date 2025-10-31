@@ -149,7 +149,7 @@ docker-compose -f docker-compose.prod.yml up -d
 → AI-powered insights and recommendations
 
 # Employee Information
-"Show details for employee John Doe"
+"Show details for employee John Doe"     
 "List all employees in sales department"
 ```
 
